@@ -1,0 +1,23 @@
+# 忽略文件
+.idea/
+*.iml
+.vscode/
+.DS_Store
+data/
+*.db
+target/
+node_modules/
+dist/
+*.log
+/logs*
+*.jar
+*.war
+*.zip
+*.tar.gz
+*.rar
+*.cmd
+
+# 保留规范文档
+!Java开发规范.md
+!Vue 项目规范.md
+!todo.md
