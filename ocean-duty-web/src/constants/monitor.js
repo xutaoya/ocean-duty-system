@@ -1,6 +1,3 @@
-/**
- * 监控状态常量
- */
 export const MONITOR_STATUS = {
   ERROR: {
     value: 0,
@@ -19,6 +16,18 @@ export const MONITOR_STATUS = {
   }
 }
 
+export const MODULE_CATEGORY = {
+  DISASTER_WARNING: {
+    value: 'disaster_warning',
+    desc: '灾害预警'
+  },
+  FORECAST_SERVICE: {
+    value: 'forecast_service',
+    desc: '预报服务'
+  }
+}
+
 export default {
-  MONITOR_STATUS
+  MONITOR_STATUS,
+  MODULE_CATEGORY
 }

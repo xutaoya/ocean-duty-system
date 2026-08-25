@@ -18,6 +18,14 @@
           <el-icon><Document /></el-icon>
           <span>值班日志</span>
         </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/monitor/monitor-site-list">
+          <el-icon><Setting /></el-icon>
+          <span>网站管理</span>
+        </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/monitor/monitor-module-list">
+          <el-icon><Grid /></el-icon>
+          <span>模块管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -54,6 +62,7 @@ export default {
 
     const activeMenu = computed(() => route.path)
     const currentTitle = computed(() => route.meta.title || '')
+    const isAdmin = computed(() => userStore.role === 'admin')
 
     /**
      * 监听窗口大小变化
@@ -81,6 +90,7 @@ export default {
     return {
       userStore,
       isMobile,
+      isAdmin,
       activeMenu,
       currentTitle,
       handleLogout

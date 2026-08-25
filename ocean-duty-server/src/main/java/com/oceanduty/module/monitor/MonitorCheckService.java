@@ -34,7 +34,9 @@ public class MonitorCheckService {
      * 检测单个网站
      */
     public void checkSite(MonitorSiteEntity site) {
-        HttpProbeUtil.ProbeResult result = HttpProbeUtil.probe(site.getSiteUrl());
+        int timeoutMs = site.getTimeoutMs() == null ? 10000 : site.getTimeoutMs();
+        int threshold = site.getResponseThreshold() == null ? 3000 : site.getResponseThreshold();
+        HttpProbeUtil.ProbeResult result = HttpProbeUtil.probe(site.getSiteUrl(), timeoutMs);
         site.setResponseTime(result.responseTime());
         site.setLastCheckTime(LocalDateTime.now());
 
@@ -43,9 +45,14 @@ public class MonitorCheckService {
             site.setHttpStatus(null);
             site.setErrorMessage(result.errorMessage());
         } else if (result.httpStatus() != null && result.httpStatus() >= 200 && result.httpStatus() < 400) {
-            site.setStatus(MonitorStatusConst.NORMAL);
             site.setHttpStatus(result.httpStatus());
             site.setErrorMessage(null);
+            if (result.responseTime() != null && result.responseTime() > threshold) {
+                site.setStatus(MonitorStatusConst.WARNING);
+                site.setErrorMessage("响应时间超限: " + result.responseTime() + "ms");
+            } else {
+                site.setStatus(MonitorStatusConst.NORMAL);
+            }
         } else {
             site.setStatus(MonitorStatusConst.ERROR);
             site.setHttpStatus(result.httpStatus());

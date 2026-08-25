@@ -44,6 +44,7 @@ ocean-duty:
   monitor:
     site-timeout-ms: 10000
     module-timeout-ms: 15000
+    nmefc-api-base: https://www.nmefc.cn/api
   jwt:
     secret: ${JWT_SECRET:ocean-duty-default-secret-change-in-production}
     expire-hours: 24

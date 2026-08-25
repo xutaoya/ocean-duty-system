@@ -1,6 +1,7 @@
 package com.oceanduty.config;
 
 import com.oceanduty.module.monitor.MonitorCheckService;
+import com.oceanduty.module.monitor.MonitorModuleCheckService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class MonitorScheduleJob {
 
     private final MonitorCheckService monitorCheckService;
+    private final MonitorModuleCheckService monitorModuleCheckService;
 
     /**
      * 每5分钟检测网站访问
@@ -31,6 +33,6 @@ public class MonitorScheduleJob {
     @Scheduled(cron = "0 */10 * * * ?")
     public void checkModules() {
         log.info("开始执行模块监控定时任务");
-        // TODO ocean-duty: 补充模块更新时间检测逻辑
+        monitorModuleCheckService.checkAllModules();
     }
 }

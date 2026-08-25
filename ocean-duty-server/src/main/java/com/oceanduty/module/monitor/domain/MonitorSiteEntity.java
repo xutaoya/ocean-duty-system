@@ -1,6 +1,8 @@
 package com.oceanduty.module.monitor.domain;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -65,7 +67,18 @@ public class MonitorSiteEntity {
     /**
      * 异常信息
      */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String errorMessage;
+
+    /**
+     * 探测超时(ms)
+     */
+    private Integer timeoutMs;
+
+    /**
+     * 响应时间阈值(ms)
+     */
+    private Integer responseThreshold;
 
     /**
      * 删除标记

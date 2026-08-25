@@ -18,7 +18,7 @@
         <span class="label">检测时间</span>
         <span class="value">{{ formatTime(site.lastCheckTime) }}</span>
       </div>
-      <div v-if="site.errorMessage" class="error-msg">{{ site.errorMessage }}</div>
+      <div v-if="showErrorMessage" class="error-msg">{{ site.errorMessage }}</div>
     </div>
   </el-card>
   <!-- end 监控卡片 -->
@@ -55,6 +55,11 @@ export default {
       return 'is-normal'
     })
 
+    const showErrorMessage = computed(() => {
+      return props.site.errorMessage
+          && props.site.status !== MONITOR_STATUS.NORMAL.value
+    })
+
     /**
      * 格式化时间
      */
@@ -63,7 +68,7 @@ export default {
       return time.replace('T', ' ').substring(0, 19)
     }
 
-    return { statusText, tagType, statusClass, formatTime }
+    return { statusText, tagType, statusClass, showErrorMessage, formatTime }
   }
 }
 </script>

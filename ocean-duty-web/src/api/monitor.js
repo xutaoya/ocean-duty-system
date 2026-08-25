@@ -27,3 +27,10 @@ export const listModules = () => {
 export const checkSites = () => {
   return postAxios('/monitor/site/check')
 }
+
+/**
+ * 手动触发模块检测
+ */
+export const checkModules = () => {
+  return postAxios('/monitor/module/check')
+}

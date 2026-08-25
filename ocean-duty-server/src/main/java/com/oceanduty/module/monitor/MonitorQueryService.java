@@ -2,6 +2,7 @@ package com.oceanduty.module.monitor;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.oceanduty.constant.MonitorStatusConst;
+import com.oceanduty.constant.ModuleCategoryConst;
 import com.oceanduty.module.monitor.domain.DashboardVO;
 import com.oceanduty.module.monitor.domain.MonitorModuleEntity;
 import com.oceanduty.module.monitor.domain.MonitorModuleVO;
@@ -75,6 +76,8 @@ public class MonitorQueryService {
                 .responseTime(entity.getResponseTime())
                 .lastCheckTime(entity.getLastCheckTime())
                 .errorMessage(entity.getErrorMessage())
+                .timeoutMs(entity.getTimeoutMs() == null ? 10000 : entity.getTimeoutMs())
+                .responseThreshold(entity.getResponseThreshold() == null ? 3000 : entity.getResponseThreshold())
                 .build();
     }
 
@@ -84,11 +87,23 @@ public class MonitorQueryService {
                 .siteId(entity.getSiteId())
                 .moduleName(entity.getModuleName())
                 .moduleUrl(entity.getModuleUrl())
+                .moduleCategory(entity.getModuleCategory())
+                .moduleCategoryName(resolveCategoryName(entity.getModuleCategory()))
+                .moduleGroup(entity.getModuleGroup())
+                .checkType(entity.getCheckType())
+                .checkParam(entity.getCheckParam())
                 .updateTime(entity.getDataUpdateTime())
                 .expectedTime(entity.getExpectedTime())
                 .status(entity.getStatus())
                 .remark(entity.getRemark())
                 .lastCheckTime(entity.getLastCheckTime())
                 .build();
+    }
+
+    private String resolveCategoryName(String category) {
+        if (ModuleCategoryConst.FORECAST_SERVICE.equals(category)) {
+            return "预报服务";
+        }
+        return "灾害预警";
     }
 }

@@ -43,6 +43,26 @@ public class MonitorModuleEntity {
     private String moduleUrl;
 
     /**
+     * 模块分类 disaster_warning灾害预警 forecast_service预报服务
+     */
+    private String moduleCategory;
+
+    /**
+     * 模块分组名称
+     */
+    private String moduleGroup;
+
+    /**
+     * 检测方式
+     */
+    private String checkType;
+
+    /**
+     * 检测参数(JSON)
+     */
+    private String checkParam;
+
+    /**
      * 数据更新时间
      */
     private LocalDateTime dataUpdateTime;

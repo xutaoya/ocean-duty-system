@@ -23,6 +23,7 @@ public class MonitorController {
 
     private final MonitorQueryService monitorQueryService;
     private final MonitorCheckService monitorCheckService;
+    private final MonitorModuleCheckService monitorModuleCheckService;
 
     @Operation(summary = "获取监控仪表盘数据 @author ocean-duty")
     @GetMapping("/monitor/dashboard/get")
@@ -47,5 +48,12 @@ public class MonitorController {
     public ResponseDTO<String> checkSites() {
         monitorCheckService.checkAllSites();
         return ResponseDTO.succ("检测任务已执行");
+    }
+
+    @Operation(summary = "手动触发模块检测 @author ocean-duty")
+    @PostMapping("/monitor/module/check")
+    public ResponseDTO<String> checkModules() {
+        monitorModuleCheckService.checkAllModules();
+        return ResponseDTO.succ("模块检测任务已执行");
     }
 }

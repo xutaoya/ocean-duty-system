@@ -1,50 +1,49 @@
 package com.oceanduty.module.monitor.domain;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 /**
- * 模块监控视图对象
+ * 监控模块新增/更新参数
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MonitorModuleVO {
+public class MonitorModuleDTO {
 
     /**
-     * 主键ID
+     * 主键ID（更新时必填）
      */
     private Long id;
 
     /**
      * 关联网站ID
      */
+    @NotNull(message = "关联网站不能为空")
     private Long siteId;
 
     /**
      * 模块名称
      */
+    @NotBlank(message = "模块名称不能为空")
     private String moduleName;
 
     /**
      * 模块页面地址
      */
+    @NotBlank(message = "模块地址不能为空")
     private String moduleUrl;
 
     /**
      * 模块分类
      */
+    @NotBlank(message = "模块分类不能为空")
     private String moduleCategory;
-
-    /**
-     * 模块分类名称
-     */
-    private String moduleCategoryName;
 
     /**
      * 模块分组
@@ -54,35 +53,18 @@ public class MonitorModuleVO {
     /**
      * 检测方式
      */
+    @NotBlank(message = "检测方式不能为空")
     private String checkType;
 
     /**
      * 检测参数(JSON)
      */
+    @NotBlank(message = "检测参数不能为空")
     private String checkParam;
 
     /**
-     * 数据更新时间
+     * 预期更新时间(HH:mm)
      */
-    private LocalDateTime updateTime;
-
-    /**
-     * 预期更新时间
-     */
+    @NotBlank(message = "预期更新时间不能为空")
     private String expectedTime;
-
-    /**
-     * 状态 0异常 1正常 2警告
-     */
-    private Integer status;
-
-    /**
-     * 备注
-     */
-    private String remark;
-
-    /**
-     * 最近检查时间
-     */
-    private LocalDateTime lastCheckTime;
 }

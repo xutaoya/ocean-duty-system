@@ -2,14 +2,19 @@
   <!-- start 监控首页 -->
   <div class="page-container dashboard-page">
     <!-- 异常告警区域 -->
-    <div v-if="abnormalSites.length" class="alert-section">
+    <div v-if="abnormalSites.length || abnormalModules.length" class="alert-section">
       <h3 class="section-title alert-title">
         <el-icon><WarningFilled /></el-icon>
         异常告警
       </h3>
-      <el-row :gutter="16">
-        <el-col v-for="site in abnormalSites" :key="site.id" :xs="24" :sm="12" :md="8" :lg="6">
+      <el-row v-if="abnormalSites.length" :gutter="16">
+        <el-col v-for="site in abnormalSites" :key="'site-' + site.id" :xs="24" :sm="12" :md="8" :lg="6">
           <MonitorSiteCard :site="site" />
+        </el-col>
+      </el-row>
+      <el-row v-if="abnormalModules.length" :gutter="16" class="alert-modules">
+        <el-col v-for="mod in abnormalModules" :key="'module-' + mod.id" :xs="24" :sm="12" :md="8" :lg="6">
+          <MonitorModuleCard :module="mod" />
         </el-col>
       </el-row>
     </div>
@@ -27,11 +32,35 @@
       </el-row>
     </div>
 
-    <!-- 模块监控 -->
+    <!-- 灾害预警 -->
     <div class="section">
-      <h3 class="section-title">模块监控</h3>
+      <h3 class="section-title">灾害预警 · 最后更新时间</h3>
       <el-row :gutter="16">
-        <el-col v-for="mod in modules" :key="mod.id" :xs="24" :sm="12" :md="8" :lg="6">
+        <el-col
+          v-for="mod in disasterModules"
+          :key="mod.id"
+          :xs="24"
+          :sm="12"
+          :md="8"
+          :lg="6"
+        >
+          <MonitorModuleCard :module="mod" />
+        </el-col>
+      </el-row>
+    </div>
+
+    <!-- 预报服务 -->
+    <div class="section">
+      <h3 class="section-title">预报服务 · 最后更新时间</h3>
+      <el-row :gutter="16">
+        <el-col
+          v-for="mod in forecastModules"
+          :key="mod.id"
+          :xs="24"
+          :sm="12"
+          :md="8"
+          :lg="6"
+        >
           <MonitorModuleCard :module="mod" />
         </el-col>
       </el-row>
@@ -41,9 +70,10 @@
 </template>
 
 <script>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getDashboard, checkSites } from '@/api/monitor'
+import { getDashboard, checkSites, checkModules } from '@/api/monitor'
+import { MODULE_CATEGORY, MONITOR_STATUS } from '@/constants/monitor'
 import MonitorSiteCard from '@/components/monitor-site-card.vue'
 import MonitorModuleCard from '@/components/monitor-module-card.vue'
 
@@ -55,6 +85,18 @@ export default {
     const sites = ref([])
     const modules = ref([])
     const checking = ref(false)
+
+    const disasterModules = computed(() =>
+      modules.value.filter(item => item.moduleCategory === MODULE_CATEGORY.DISASTER_WARNING.value)
+    )
+
+    const forecastModules = computed(() =>
+      modules.value.filter(item => item.moduleCategory === MODULE_CATEGORY.FORECAST_SERVICE.value)
+    )
+
+    const abnormalModules = computed(() =>
+      modules.value.filter(item => item.status === MONITOR_STATUS.ERROR.value)
+    )
 
     /**
      * 加载仪表盘数据
@@ -72,7 +114,7 @@ export default {
     const handleCheck = async () => {
       checking.value = true
       try {
-        await checkSites()
+        await Promise.all([checkSites(), checkModules()])
         ElMessage.success('检测完成')
         await loadDashboard()
       } finally {
@@ -84,7 +126,16 @@ export default {
       loadDashboard()
     })
 
-    return { abnormalSites, sites, modules, checking, handleCheck }
+    return {
+      abnormalSites,
+      abnormalModules,
+      sites,
+      modules,
+      disasterModules,
+      forecastModules,
+      checking,
+      handleCheck
+    }
   }
 }
 </script>
@@ -124,6 +175,10 @@ export default {
   padding: 16px;
   background: #fef0f0;
   border-radius: 8px;
+}
+
+.alert-modules {
+  margin-top: 12px;
 }
 
 @media (max-width: 768px) {

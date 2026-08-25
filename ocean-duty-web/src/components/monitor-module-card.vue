@@ -1,7 +1,13 @@
 <template>
   <!-- start 模块监控卡片 -->
   <el-card :class="['module-card', statusClass]" shadow="hover">
-    <div class="module-name">{{ module.moduleName }}</div>
+    <div class="module-header">
+      <div>
+        <div v-if="module.moduleGroup" class="module-group">{{ module.moduleGroup }}</div>
+        <div class="module-name">{{ module.moduleName }}</div>
+      </div>
+      <el-tag :type="tagType" size="small">{{ statusText }}</el-tag>
+    </div>
     <div class="module-info">
       <div class="info-item">
         <span class="label">更新时间</span>
@@ -10,10 +16,6 @@
       <div class="info-item">
         <span class="label">更新周期</span>
         <span class="value">每天 {{ module.expectedTime || '-' }}</span>
-      </div>
-      <div class="info-item">
-        <span class="label">状态</span>
-        <el-tag :type="tagType" size="small">{{ statusText }}</el-tag>
       </div>
     </div>
   </el-card>
@@ -84,7 +86,19 @@ export default {
 .module-name {
   font-size: 16px;
   font-weight: 600;
+}
+
+.module-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 12px;
+}
+
+.module-group {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 4px;
 }
 
 .info-item {

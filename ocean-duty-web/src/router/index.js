@@ -24,6 +24,18 @@ const routes = [
         name: 'DutyLogList',
         component: () => import('@/views/duty/duty-log-list.vue'),
         meta: { title: '值班日志' }
+      },
+      {
+        path: '/monitor/monitor-site-list',
+        name: 'MonitorSiteList',
+        component: () => import('@/views/monitor/monitor-site-list.vue'),
+        meta: { title: '网站管理', requireAdmin: true }
+      },
+      {
+        path: '/monitor/monitor-module-list',
+        name: 'MonitorModuleList',
+        component: () => import('@/views/monitor/monitor-module-list.vue'),
+        meta: { title: '模块管理', requireAdmin: true }
       }
     ]
   }
@@ -39,9 +51,13 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   if (to.path !== '/login' && !token) {
     next('/login')
-  } else {
-    next()
+    return
   }
+  if (to.meta.requireAdmin && localStorage.getItem('role') !== 'admin') {
+    next('/dashboard')
+    return
+  }
+  next()
 })
 
 export default router

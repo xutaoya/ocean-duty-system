@@ -60,4 +60,14 @@ public class MonitorSiteVO {
      * 异常信息
      */
     private String errorMessage;
+
+    /**
+     * 探测超时(ms)
+     */
+    private Integer timeoutMs;
+
+    /**
+     * 响应时间阈值(ms)
+     */
+    private Integer responseThreshold;
 }
