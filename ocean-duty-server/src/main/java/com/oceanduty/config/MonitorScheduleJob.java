@@ -36,10 +36,12 @@ public class MonitorScheduleJob {
      */
     @Scheduled(cron = "0 */10 * * * ?")
     public void checkModules() {
-        if (!moduleCheckEnabled) {
+        if (moduleCheckEnabled) {
+            log.info("开始执行模块监控定时任务");
+            monitorModuleCheckService.checkAllModules();
             return;
         }
-        log.info("开始执行模块监控定时任务");
-        monitorModuleCheckService.checkAllModules();
+        log.info("开始执行 CMS 灾害预警模块检测");
+        monitorModuleCheckService.checkCmsForecastAlarmModules();
     }
 }

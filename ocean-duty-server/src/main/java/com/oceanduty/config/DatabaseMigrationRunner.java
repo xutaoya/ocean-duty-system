@@ -1,5 +1,6 @@
 package com.oceanduty.config;
 
+import com.oceanduty.util.CredentialEncryptUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -24,6 +25,7 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
 
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
+    private final CredentialEncryptUtil credentialEncryptUtil;
 
     @Override
     public void run(String... args) {
@@ -32,6 +34,9 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         addColumnIfMissing("monitor_module", moduleColumns, "module_group", "VARCHAR(50)");
         addColumnIfMissing("monitor_module", moduleColumns, "check_type", "VARCHAR(50) NOT NULL DEFAULT 'WARN_HISTORY'");
         addColumnIfMissing("monitor_module", moduleColumns, "check_param", "VARCHAR(500)");
+        addColumnIfMissing("monitor_module", moduleColumns, "alarm_title", "VARCHAR(200)");
+        addColumnIfMissing("monitor_module", moduleColumns, "alarm_code", "VARCHAR(100)");
+        addColumnIfMissing("monitor_module", moduleColumns, "alarm_level", "VARCHAR(50)");
 
         Set<String> siteColumns = loadTableColumns("monitor_site");
         addColumnIfMissing("monitor_site", siteColumns, "timeout_ms", "INTEGER NOT NULL DEFAULT 10000");
@@ -39,6 +44,25 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         syncDefaultSiteUrls();
         seedDefaultUsers();
         migratePlainPasswords();
+        migrateDatasourcePasswords();
+    }
+
+    /**
+     * 将数据源明文密码迁移为 AES 密文
+     */
+    private void migrateDatasourcePasswords() {
+        List<Map<String, Object>> datasources = jdbcTemplate.queryForList(
+                "SELECT id, password FROM monitor_datasource WHERE deleted_flag = 0");
+        for (Map<String, Object> datasource : datasources) {
+            String password = String.valueOf(datasource.get("password"));
+            if (credentialEncryptUtil.isEncrypted(password)) {
+                continue;
+            }
+            String encoded = credentialEncryptUtil.encrypt(password);
+            jdbcTemplate.update("UPDATE monitor_datasource SET password = ? WHERE id = ?",
+                    encoded, datasource.get("id"));
+            log.info("已加密 monitor_datasource.{} 密码", datasource.get("id"));
+        }
     }
 
     /**

@@ -88,6 +88,9 @@ public class MonitorModuleManageService {
         entity.setDataUpdateTime(exist.getDataUpdateTime());
         entity.setLastCheckTime(exist.getLastCheckTime());
         entity.setRemark(exist.getRemark());
+        entity.setAlarmTitle(exist.getAlarmTitle());
+        entity.setAlarmCode(exist.getAlarmCode());
+        entity.setAlarmLevel(exist.getAlarmLevel());
         monitorModuleDao.updateById(entity);
         return ResponseDTO.succ();
     }
@@ -150,6 +153,9 @@ public class MonitorModuleManageService {
                 .expectedTime(entity.getExpectedTime())
                 .status(entity.getStatus())
                 .remark(entity.getRemark())
+                .alarmTitle(entity.getAlarmTitle())
+                .alarmCode(entity.getAlarmCode())
+                .alarmLevel(entity.getAlarmLevel())
                 .lastCheckTime(entity.getLastCheckTime())
                 .build();
     }

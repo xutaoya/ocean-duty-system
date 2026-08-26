@@ -40,6 +40,12 @@ const routes = [
         meta: { title: '模块管理', requireAdmin: true }
       },
       {
+        path: '/monitor/monitor-datasource-list',
+        name: 'MonitorDatasourceList',
+        component: () => import('@/views/monitor/monitor-datasource-list.vue'),
+        meta: { title: '数据源管理', requireAdmin: true }
+      },
+      {
         path: '/user/user-list',
         name: 'UserList',
         component: () => import('@/views/user/user-list.vue'),

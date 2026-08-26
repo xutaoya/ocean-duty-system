@@ -26,6 +26,10 @@
           <el-icon><Grid /></el-icon>
           <span>模块管理</span>
         </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/monitor/monitor-datasource-list">
+          <el-icon><Coin /></el-icon>
+          <span>数据源管理</span>
+        </el-menu-item>
         <el-menu-item v-if="isAdmin" index="/user/user-list">
           <el-icon><User /></el-icon>
           <span>用户管理</span>

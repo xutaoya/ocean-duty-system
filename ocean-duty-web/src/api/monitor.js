@@ -34,3 +34,10 @@ export const checkSites = () => {
 export const checkModules = () => {
   return postAxios('/monitor/module/check')
 }
+
+/**
+ * 查询模块最新 CMS 警报详情
+ */
+export const getModuleAlarmDetail = (id) => {
+  return getAxios(`/monitor/module/alarm/${id}`)
+}

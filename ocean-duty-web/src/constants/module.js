@@ -42,6 +42,24 @@ export const MODULE_CHECK_TYPE = {
     value: 'POLAR_REGIONS_LIST',
     desc: '极地预报',
     fields: [{ key: 'region', label: '区域', placeholder: '如 ArcticPolarIce' }]
+  },
+  CMS_FORECAST_ALARM: {
+    value: 'CMS_FORECAST_ALARM',
+    desc: 'CMS灾害预警表',
+    fields: [
+      { key: 'datasourceId', label: '数据源ID', placeholder: '如 1' },
+      {
+        key: 'type',
+        label: '警报类型',
+        placeholder: 'wave/storm/bore/ice',
+        options: [
+          { value: 'wave', label: '海浪' },
+          { value: 'storm', label: '风暴潮' },
+          { value: 'bore', label: '海啸' },
+          { value: 'ice', label: '海冰' }
+        ]
+      }
+    ]
   }
 }
 

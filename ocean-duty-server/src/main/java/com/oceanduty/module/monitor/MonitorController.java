@@ -9,8 +9,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.oceanduty.module.monitor.domain.CmsForecastAlarmDetailVO;
 
 import java.util.List;
 
@@ -25,6 +28,7 @@ public class MonitorController {
     private final MonitorQueryService monitorQueryService;
     private final MonitorCheckService monitorCheckService;
     private final MonitorModuleCheckService monitorModuleCheckService;
+    private final MonitorModuleAlarmService monitorModuleAlarmService;
 
     @Value("${ocean-duty.monitor.module-check-enabled:false}")
     private boolean moduleCheckEnabled;
@@ -47,6 +51,12 @@ public class MonitorController {
         return ResponseDTO.succ(monitorQueryService.listAllModules());
     }
 
+    @Operation(summary = "查询模块最新 CMS 警报详情 @author ocean-duty")
+    @GetMapping("/monitor/module/alarm/{id}")
+    public ResponseDTO<CmsForecastAlarmDetailVO> getModuleAlarmDetail(@PathVariable Long id) {
+        return monitorModuleAlarmService.getAlarmDetail(id);
+    }
+
     @Operation(summary = "手动触发网站检测 @author ocean-duty")
     @PostMapping("/monitor/site/check")
     public ResponseDTO<String> checkSites() {
@@ -57,10 +67,11 @@ public class MonitorController {
     @Operation(summary = "手动触发模块检测 @author ocean-duty")
     @PostMapping("/monitor/module/check")
     public ResponseDTO<String> checkModules() {
-        if (!moduleCheckEnabled) {
-            return ResponseDTO.succ("模块更新时间检测暂未启用");
+        if (moduleCheckEnabled) {
+            monitorModuleCheckService.checkAllModules();
+        } else {
+            monitorModuleCheckService.checkCmsForecastAlarmModules();
         }
-        monitorModuleCheckService.checkAllModules();
         return ResponseDTO.succ("模块检测任务已执行");
     }
 }

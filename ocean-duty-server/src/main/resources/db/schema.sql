@@ -30,6 +30,9 @@ CREATE TABLE IF NOT EXISTS monitor_module (
     expected_time   VARCHAR(20),
     status          TINYINT      NOT NULL DEFAULT 1,
     remark          VARCHAR(500),
+    alarm_title     VARCHAR(200),
+    alarm_code      VARCHAR(100),
+    alarm_level     VARCHAR(50),
     last_check_time DATETIME,
     deleted_flag    TINYINT      NOT NULL DEFAULT 0,
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -94,3 +97,20 @@ CREATE TABLE IF NOT EXISTS sys_user (
 CREATE INDEX IF NOT EXISTS idx_monitor_module_site_id ON monitor_module(site_id);
 CREATE INDEX IF NOT EXISTS idx_monitor_record_check_time ON monitor_record(check_time);
 CREATE INDEX IF NOT EXISTS idx_duty_log_duty_time ON duty_log(duty_time);
+
+-- 模块数据源配置表
+CREATE TABLE IF NOT EXISTS monitor_datasource (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ds_name         VARCHAR(100) NOT NULL,
+    ds_type         VARCHAR(20)  NOT NULL DEFAULT 'mysql',
+    host            VARCHAR(200) NOT NULL,
+    port            INTEGER      NOT NULL DEFAULT 3306,
+    database_name   VARCHAR(100) NOT NULL,
+    username        VARCHAR(100) NOT NULL,
+    password        VARCHAR(200) NOT NULL,
+    table_name      VARCHAR(100) NOT NULL,
+    status          TINYINT      NOT NULL DEFAULT 1,
+    deleted_flag    TINYINT      NOT NULL DEFAULT 0,
+    create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -83,6 +83,21 @@ public class MonitorModuleEntity {
     private String remark;
 
     /**
+     * 最新警报名称
+     */
+    private String alarmTitle;
+
+    /**
+     * 最新警报编号
+     */
+    private String alarmCode;
+
+    /**
+     * 最新警报等级
+     */
+    private String alarmLevel;
+
+    /**
      * 最近检查时间
      */
     private LocalDateTime lastCheckTime;

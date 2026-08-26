@@ -69,13 +69,9 @@
           <el-icon><WarningFilled /></el-icon>
           灾害预警 · 最后更新时间
         </h3>
-        <span class="section-count">{{ disasterModules.length }} 个模块</span>
+        <span class="section-count">中国海洋预报网 · {{ disasterModules.length }} 个模块</span>
       </div>
-      <el-row v-if="disasterModules.length" :gutter="16" class="card-grid">
-        <el-col v-for="mod in disasterModules" :key="mod.id" :xs="24" :sm="12" :md="8" :lg="6" class="card-col">
-          <MonitorModuleCard :module="mod" />
-        </el-col>
-      </el-row>
+      <MonitorDisasterPanel v-if="disasterModules.length" :modules="disasterModules" />
       <div v-else class="empty-state empty-state--info">
         <el-icon :size="36"><InfoFilled /></el-icon>
         <p>暂无灾害预警模块数据</p>
@@ -108,14 +104,15 @@
 <script>
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getDashboard, checkSites } from '@/api/monitor'
+import { getDashboard, checkSites, checkModules } from '@/api/monitor'
 import { MONITOR_STATUS, MODULE_CATEGORY } from '@/constants/monitor'
 import MonitorSiteCard from '@/components/monitor-site-card.vue'
+import MonitorDisasterPanel from '@/components/monitor-disaster-panel.vue'
 import MonitorModuleCard from '@/components/monitor-module-card.vue'
 
 export default {
   name: 'DashboardPage',
-  components: { MonitorSiteCard, MonitorModuleCard },
+  components: { MonitorSiteCard, MonitorDisasterPanel, MonitorModuleCard },
   setup() {
     const abnormalSites = ref([])
     const sites = ref([])
@@ -138,7 +135,10 @@ export default {
     ])
 
     const disasterModules = computed(() =>
-      modules.value.filter(m => m.moduleCategory === MODULE_CATEGORY.DISASTER_WARNING.value)
+      modules.value.filter(m =>
+        m.moduleCategory === MODULE_CATEGORY.DISASTER_WARNING.value
+        && m.moduleGroup === '中国海洋预报网'
+      )
     )
 
     const forecastModules = computed(() =>
@@ -162,7 +162,8 @@ export default {
       checking.value = true
       try {
         await checkSites()
-        ElMessage.success('网站检测完成')
+        await checkModules()
+        ElMessage.success('检测完成')
         await loadDashboard()
       } finally {
         checking.value = false

@@ -27,11 +27,13 @@ public class MonitorQueryService {
 
     private final MonitorSiteDao monitorSiteDao;
     private final MonitorModuleDao monitorModuleDao;
+    private final MonitorModuleCheckService monitorModuleCheckService;
 
     /**
      * 获取监控仪表盘数据
      */
     public DashboardVO getDashboard() {
+        monitorModuleCheckService.checkCmsForecastAlarmModules();
         List<MonitorSiteVO> sites = listAllSites();
         List<MonitorSiteVO> abnormalSites = sites.stream()
                 .filter(site -> MonitorStatusConst.ERROR.equals(site.getStatus()))
@@ -96,6 +98,9 @@ public class MonitorQueryService {
                 .expectedTime(entity.getExpectedTime())
                 .status(entity.getStatus())
                 .remark(entity.getRemark())
+                .alarmTitle(entity.getAlarmTitle())
+                .alarmCode(entity.getAlarmCode())
+                .alarmLevel(entity.getAlarmLevel())
                 .lastCheckTime(entity.getLastCheckTime())
                 .build();
     }

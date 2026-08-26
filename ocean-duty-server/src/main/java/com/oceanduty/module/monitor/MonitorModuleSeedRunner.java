@@ -107,8 +107,26 @@ public class MonitorModuleSeedRunner implements CommandLineRunner {
                         "{\"key\":\"ecology\"}", "08:00"),
                 module(23L, siteId, "中尺度诊断产品", "https://www.nmefc.cn/ybfw/diagnostic/scs",
                         ModuleCategoryConst.FORECAST_SERVICE, "中尺度诊断", ModuleCheckTypeConst.DEEPSEA_INFO,
-                        "{\"region\":\"scs\",\"element\":\"eddy\"}", "08:00")
+                        "{\"region\":\"scs\",\"element\":\"eddy\"}", "08:00"),
+
+                cmsModule(24L, 1L, "海浪警报", "https://www.oceanguide.org.cn/IndexHome",
+                        "wave", "08:00"),
+                cmsModule(25L, 1L, "风暴潮警报", "https://www.oceanguide.org.cn/IndexHome",
+                        "storm", "08:00"),
+                cmsModule(26L, 1L, "海啸警报", "https://www.oceanguide.org.cn/IndexHome",
+                        "bore", "08:00"),
+                cmsModule(27L, 1L, "海冰警报", "https://www.oceanguide.org.cn/IndexHome",
+                        "ice", "08:00")
         );
+    }
+
+    private MonitorModuleEntity cmsModule(Long id, Long siteId, String name, String url,
+                                          String alarmType, String expectedTime) {
+        return module(id, siteId, name, url,
+                ModuleCategoryConst.DISASTER_WARNING, "中国海洋预报网",
+                ModuleCheckTypeConst.CMS_FORECAST_ALARM,
+                "{\"datasourceId\":\"1\",\"type\":\"" + alarmType + "\"}",
+                expectedTime);
     }
 
     private MonitorModuleEntity module(Long id, Long siteId, String name, String url, String category,

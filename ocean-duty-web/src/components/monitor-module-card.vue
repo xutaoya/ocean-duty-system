@@ -42,7 +42,6 @@ import { MONITOR_STATUS } from '@/constants/monitor'
 export default {
   name: 'MonitorModuleCard',
   props: {
-    // 模块监控数据
     module: {
       type: Object,
       required: true
@@ -60,9 +59,6 @@ export default {
       return 'is-normal'
     })
 
-    /**
-     * 格式化时间
-     */
     const formatTime = (time) => {
       if (!time) return '-'
       return time.replace('T', ' ').substring(0, 19)
@@ -85,7 +81,6 @@ export default {
   border-radius: 12px;
   border: 1px solid #eef0f4;
   box-shadow: 0 2px 8px rgba(0, 21, 41, 0.04);
-  transition: box-shadow 0.25s, transform 0.25s;
   overflow: hidden;
 }
 
@@ -102,18 +97,12 @@ export default {
 .module-card.is-warning::before { background: linear-gradient(90deg, #faad14, #ffc53d); }
 .module-card.is-error::before { background: linear-gradient(90deg, #ff4d4f, #ff7875); }
 
-.module-card:hover {
-  box-shadow: 0 8px 24px rgba(0, 21, 41, 0.08);
-  transform: translateY(-2px);
-}
-
 .card-top {
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  height: 72px;
+  min-height: 72px;
   margin-bottom: 16px;
-  flex-shrink: 0;
 }
 
 .module-info {
@@ -148,19 +137,13 @@ export default {
   font-size: 11px;
   color: #8c8c8c;
   margin-bottom: 2px;
-  letter-spacing: 0.5px;
 }
 
 .module-name {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  height: 42px;
   font-size: 15px;
   font-weight: 600;
   color: #1a1a2e;
-  line-height: 21px;
+  line-height: 1.4;
 }
 
 .module-status {
@@ -185,11 +168,9 @@ export default {
 .module-meta {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 10px;
-  height: 76px;
   margin-top: auto;
-  flex-shrink: 0;
+  padding-top: 12px;
   border-top: 1px solid #f5f5f5;
 }
 
@@ -202,7 +183,6 @@ export default {
 
 .meta-item .el-icon {
   color: #bfbfbf;
-  font-size: 15px;
 }
 
 .meta-label {

@@ -118,7 +118,24 @@
           :key="field.key"
           :label="field.label"
         >
-          <el-input v-model="paramForm[field.key]" :placeholder="field.placeholder" />
+          <el-select
+            v-if="field.options"
+            v-model="paramForm[field.key]"
+            :placeholder="field.placeholder"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="option in field.options"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+          <el-input
+            v-else
+            v-model="paramForm[field.key]"
+            :placeholder="field.placeholder"
+          />
         </el-form-item>
       </el-form>
       <template #footer>

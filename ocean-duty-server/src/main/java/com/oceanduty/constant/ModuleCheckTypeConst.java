@@ -25,4 +25,7 @@ public final class ModuleCheckTypeConst {
 
     /** 极地预报接口 */
     public static final String POLAR_REGIONS_LIST = "POLAR_REGIONS_LIST";
+
+    /** CMS 灾害预警表查询 */
+    public static final String CMS_FORECAST_ALARM = "CMS_FORECAST_ALARM";
 }
