@@ -1,7 +1,9 @@
 package com.oceanduty.module.monitor;
 
+import com.oceanduty.common.anno.RequireRole;
 import com.oceanduty.common.domain.PageResultVO;
 import com.oceanduty.common.domain.ResponseDTO;
+import com.oceanduty.constant.UserRoleConst;
 import com.oceanduty.module.monitor.domain.MonitorModuleDTO;
 import com.oceanduty.module.monitor.domain.MonitorModuleQueryDTO;
 import com.oceanduty.module.monitor.domain.MonitorModuleVO;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @Tag(name = "监控模块管理")
 @RestController
+@RequireRole(UserRoleConst.ADMIN)
 @RequiredArgsConstructor
 public class MonitorModuleController {
 

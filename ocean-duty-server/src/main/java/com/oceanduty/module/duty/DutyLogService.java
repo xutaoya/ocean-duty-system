@@ -9,7 +9,9 @@ import com.oceanduty.common.exception.BusinessException;
 import com.oceanduty.module.duty.domain.DutyLogDTO;
 import com.oceanduty.module.duty.domain.DutyLogEntity;
 import com.oceanduty.module.duty.domain.DutyLogQueryDTO;
+import com.oceanduty.common.domain.RequestUser;
 import com.oceanduty.module.duty.domain.DutyLogVO;
+import com.oceanduty.util.RequestUserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -62,6 +64,7 @@ public class DutyLogService {
      */
     public ResponseDTO<String> addDutyLog(DutyLogDTO dutyLogDTO) {
         DutyLogEntity entity = toEntity(dutyLogDTO);
+        entity.setUserName(resolveUserName(dutyLogDTO.getUserName()));
         dutyLogDao.insert(entity);
         return ResponseDTO.succ();
     }
@@ -79,8 +82,32 @@ public class DutyLogService {
         }
         DutyLogEntity entity = toEntity(dutyLogDTO);
         entity.setId(dutyLogDTO.getId());
+        entity.setUserName(resolveUserName(dutyLogDTO.getUserName()));
         dutyLogDao.updateById(entity);
         return ResponseDTO.succ();
+    }
+
+    /**
+     * 删除值班日志
+     */
+    public ResponseDTO<String> deleteDutyLog(Long id) {
+        DutyLogEntity exist = dutyLogDao.selectById(id);
+        if (exist == null) {
+            throw new BusinessException(ResponseCodeConst.NOT_FOUND);
+        }
+        dutyLogDao.deleteById(id);
+        return ResponseDTO.succ();
+    }
+
+    private String resolveUserName(String userName) {
+        if (StringUtils.hasText(userName)) {
+            return userName;
+        }
+        RequestUser requestUser = RequestUserContext.get();
+        if (requestUser != null && StringUtils.hasText(requestUser.getUsername())) {
+            return requestUser.getUsername();
+        }
+        throw new BusinessException(ResponseCodeConst.ERROR_PARAM, "值班人员不能为空");
     }
 
     private DutyLogVO toVO(DutyLogEntity entity) {

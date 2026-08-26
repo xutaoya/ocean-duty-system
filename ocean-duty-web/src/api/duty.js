@@ -1,4 +1,4 @@
-import { postAxios } from '@/lib/axios'
+import { postAxios, getAxios } from '@/lib/axios'
 
 /**
  * 分页查询值班日志
@@ -19,4 +19,11 @@ export const addDutyLog = (data) => {
  */
 export const updateDutyLog = (data) => {
   return postAxios('/duty/log/update', data)
+}
+
+/**
+ * 删除值班日志
+ */
+export const deleteDutyLog = (id) => {
+  return getAxios(`/duty/log/delete/${id}`)
 }

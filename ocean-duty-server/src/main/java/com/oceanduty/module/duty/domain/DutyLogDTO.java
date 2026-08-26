@@ -1,6 +1,5 @@
 package com.oceanduty.module.duty.domain;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,7 +25,6 @@ public class DutyLogDTO {
     /**
      * 值班人员
      */
-    @NotBlank(message = "值班人员不能为空")
     private String userName;
 
     /**

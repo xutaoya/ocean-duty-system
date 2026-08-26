@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
@@ -22,6 +23,7 @@ import java.util.Set;
 public class DatabaseMigrationRunner implements CommandLineRunner {
 
     private final JdbcTemplate jdbcTemplate;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
@@ -35,6 +37,39 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         addColumnIfMissing("monitor_site", siteColumns, "timeout_ms", "INTEGER NOT NULL DEFAULT 10000");
         addColumnIfMissing("monitor_site", siteColumns, "response_threshold", "INTEGER NOT NULL DEFAULT 3000");
         syncDefaultSiteUrls();
+        seedDefaultUsers();
+        migratePlainPasswords();
+    }
+
+    /**
+     * 初始化默认用户
+     */
+    private void seedDefaultUsers() {
+        Integer dutyCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sys_user WHERE username = 'duty'", Integer.class);
+        if (dutyCount != null && dutyCount == 0) {
+            jdbcTemplate.update(
+                    "INSERT INTO sys_user (username, password, real_name, role, status) VALUES (?, ?, ?, ?, ?)",
+                    "duty", "duty123", "值班人员", "duty", 1);
+            log.info("已初始化默认值班账号 duty / duty123");
+        }
+    }
+
+    /**
+     * 将明文密码迁移为 BCrypt
+     */
+    private void migratePlainPasswords() {
+        List<Map<String, Object>> users = jdbcTemplate.queryForList(
+                "SELECT id, password FROM sys_user WHERE deleted_flag = 0");
+        for (Map<String, Object> user : users) {
+            String password = String.valueOf(user.get("password"));
+            if (password.startsWith("$2a$") || password.startsWith("$2b$")) {
+                continue;
+            }
+            String encoded = passwordEncoder.encode(password);
+            jdbcTemplate.update("UPDATE sys_user SET password = ? WHERE id = ?", encoded, user.get("id"));
+            log.info("已加密 sys_user.{} 密码", user.get("id"));
+        }
     }
 
     /**

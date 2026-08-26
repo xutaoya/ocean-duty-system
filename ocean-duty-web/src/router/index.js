@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '@/store/user'
+import { isAdminRole } from '@/constants/user'
 
 const routes = [
   {
@@ -36,6 +38,12 @@ const routes = [
         name: 'MonitorModuleList',
         component: () => import('@/views/monitor/monitor-module-list.vue'),
         meta: { title: '模块管理', requireAdmin: true }
+      },
+      {
+        path: '/user/user-list',
+        name: 'UserList',
+        component: () => import('@/views/user/user-list.vue'),
+        meta: { title: '用户管理', requireAdmin: true }
       }
     ]
   }
@@ -48,12 +56,23 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   document.title = to.meta.title ? `${to.meta.title} - 海洋预报值班监控` : '海洋预报值班监控'
-  const token = localStorage.getItem('token')
-  if (to.path !== '/login' && !token) {
+  const userStore = useUserStore()
+
+  if (to.path === '/login') {
+    if (userStore.token) {
+      next('/dashboard')
+      return
+    }
+    next()
+    return
+  }
+
+  if (!userStore.token) {
     next('/login')
     return
   }
-  if (to.meta.requireAdmin && localStorage.getItem('role') !== 'admin') {
+
+  if (to.meta.requireAdmin && !isAdminRole(userStore.role)) {
     next('/dashboard')
     return
   }

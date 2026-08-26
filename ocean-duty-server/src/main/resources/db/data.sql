@@ -2,6 +2,10 @@
 INSERT OR IGNORE INTO sys_user (id, username, password, real_name, role, status)
 VALUES (1, 'admin', 'admin123', '系统管理员', 'admin', 1);
 
+-- 默认值班账号 duty / duty123
+INSERT OR IGNORE INTO sys_user (id, username, password, real_name, role, status)
+VALUES (2, 'duty', 'duty123', '值班人员', 'duty', 1);
+
 -- 初始化监控网站
 INSERT OR IGNORE INTO monitor_site (id, site_name, site_url, site_type, status)
 VALUES

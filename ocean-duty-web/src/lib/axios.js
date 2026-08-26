@@ -2,6 +2,7 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import config from '@/config'
 import router from '@/router'
+import { useUserStore } from '@/store/user'
 
 const service = axios.create({
   baseURL: config.baseApi,
@@ -27,8 +28,11 @@ service.interceptors.response.use(
     if (res.code !== 0) {
       ElMessage.error(res.msg || '请求失败')
       if (res.code === 10003) {
-        localStorage.removeItem('token')
+        useUserStore().logout()
         router.push('/login')
+      }
+      if (res.code === 10004) {
+        router.push('/dashboard')
       }
       return Promise.reject(new Error(res.msg || '请求失败'))
     }

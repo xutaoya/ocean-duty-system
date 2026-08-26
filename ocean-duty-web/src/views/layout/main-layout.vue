@@ -26,6 +26,10 @@
           <el-icon><Grid /></el-icon>
           <span>模块管理</span>
         </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/user/user-list">
+          <el-icon><User /></el-icon>
+          <span>用户管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -51,6 +55,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
+import { isAdminRole } from '@/constants/user'
 
 export default {
   name: 'MainLayout',
@@ -62,7 +67,7 @@ export default {
 
     const activeMenu = computed(() => route.path)
     const currentTitle = computed(() => route.meta.title || '')
-    const isAdmin = computed(() => userStore.role === 'admin')
+    const isAdmin = computed(() => isAdminRole(userStore.role))
 
     /**
      * 监听窗口大小变化

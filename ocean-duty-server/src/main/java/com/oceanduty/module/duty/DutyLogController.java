@@ -46,7 +46,6 @@ public class DutyLogController {
     @Operation(summary = "删除值班日志 @author ocean-duty")
     @GetMapping("/duty/log/delete/{id}")
     public ResponseDTO<String> deleteDutyLog(@PathVariable Long id) {
-        // TODO ocean-duty: 补充删除逻辑
-        return ResponseDTO.succ();
+        return dutyLogService.deleteDutyLog(id);
     }
 }
