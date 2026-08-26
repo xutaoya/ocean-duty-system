@@ -34,6 +34,31 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         Set<String> siteColumns = loadTableColumns("monitor_site");
         addColumnIfMissing("monitor_site", siteColumns, "timeout_ms", "INTEGER NOT NULL DEFAULT 10000");
         addColumnIfMissing("monitor_site", siteColumns, "response_threshold", "INTEGER NOT NULL DEFAULT 3000");
+        syncDefaultSiteUrls();
+    }
+
+    /**
+     * 同步默认监控网站地址（仅替换旧版默认地址）
+     */
+    private void syncDefaultSiteUrls() {
+        updateSiteUrlIfLegacy(1L, "https://www.oceanguide.org.cn/IndexHome",
+                "https://www.oceanguide.org.cn/", "http://www.oceanguide.org.cn/");
+        updateSiteUrlIfLegacy(4L, "https://neargoos.nmefc.cn/#/index",
+                "https://www.neargoos.org/", "http://www.neargoos.org/");
+        updateSiteUrlIfLegacy(5L, "https://macom.oceanguide.org.cn/",
+                "https://www.macom.cn/", "http://www.macom.cn/");
+    }
+
+    private void updateSiteUrlIfLegacy(Long id, String newUrl, String... legacyUrls) {
+        for (String legacyUrl : legacyUrls) {
+            int updated = jdbcTemplate.update(
+                    "UPDATE monitor_site SET site_url = ? WHERE id = ? AND site_url = ?",
+                    newUrl, id, legacyUrl);
+            if (updated > 0) {
+                log.info("已更新 monitor_site.{} 地址: {} -> {}", id, legacyUrl, newUrl);
+                return;
+            }
+        }
     }
 
     private Set<String> loadTableColumns(String tableName) {

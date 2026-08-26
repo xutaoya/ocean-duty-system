@@ -27,7 +27,22 @@ export const MODULE_CATEGORY = {
   }
 }
 
+/**
+ * 根据 HTTP 状态码返回样式类名
+ */
+export const getHttpStatusClass = (httpStatus) => {
+  if (httpStatus == null || httpStatus === 0) return 'http-unknown'
+  const code = Number(httpStatus)
+  if (Number.isNaN(code)) return 'http-unknown'
+  if (code >= 200 && code < 300) return 'http-success'
+  if (code >= 300 && code < 400) return 'http-redirect'
+  if (code >= 400 && code < 500) return 'http-client-error'
+  if (code >= 500) return 'http-server-error'
+  return 'http-unknown'
+}
+
 export default {
   MONITOR_STATUS,
-  MODULE_CATEGORY
+  MODULE_CATEGORY,
+  getHttpStatusClass
 }

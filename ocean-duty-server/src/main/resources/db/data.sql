@@ -5,11 +5,11 @@ VALUES (1, 'admin', 'admin123', '系统管理员', 'admin', 1);
 -- 初始化监控网站
 INSERT OR IGNORE INTO monitor_site (id, site_name, site_url, site_type, status)
 VALUES
-    (1, '中国海洋预报网', 'https://www.oceanguide.org.cn/', 'portal', 1),
+    (1, '中国海洋预报网', 'https://www.oceanguide.org.cn/IndexHome', 'portal', 1),
     (2, '国家海洋预报中心门户网站', 'https://www.nmefc.cn/', 'portal', 1),
     (3, '海洋灾害子场景', 'https://www.nmefc.cn/', 'subscene', 1),
-    (4, 'NEARGOOS网站', 'https://www.neargoos.org/', 'portal', 1),
-    (5, 'MaCOM网站', 'https://www.macom.cn/', 'portal', 1);
+    (4, 'NEARGOOS网站', 'https://neargoos.nmefc.cn/#/index', 'portal', 1),
+    (5, 'MaCOM网站', 'https://macom.oceanguide.org.cn/', 'portal', 1);
 
 -- 初始化灾害预警模块
 INSERT OR IGNORE INTO monitor_module (id, site_id, module_name, module_url, expected_time, status)

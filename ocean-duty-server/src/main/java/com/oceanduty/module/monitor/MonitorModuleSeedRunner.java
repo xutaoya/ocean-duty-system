@@ -16,7 +16,7 @@ import java.util.List;
  * 监控模块种子数据同步
  */
 @Slf4j
-@Order(2)
+@Order(3)
 @Component
 @RequiredArgsConstructor
 public class MonitorModuleSeedRunner implements CommandLineRunner {
