@@ -49,7 +49,7 @@ public class MonitorModuleSeedRunner implements CommandLineRunner {
                 envModule(28L, 1L, "海区预报", "https://www.oceanguide.org.cn/IndexHome",
                         2L, "name", "15:30"),
                 envModule(29L, 1L, "近岸预报", "https://www.oceanguide.org.cn/IndexHome",
-                        3L, "code", "09:00"),
+                        3L, "name", "09:00"),
                 envMonthlyModule(30L, 1L, "月预报", "https://www.oceanguide.org.cn/IndexHome",
                         4L, "1190087852779372544", "00:00")
         );

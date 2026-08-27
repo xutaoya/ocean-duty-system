@@ -28,11 +28,8 @@ export const getAlarmLevelTheme = (level = '') => {
  * 根据监控状态返回主题色
  */
 export const getMonitorStatusTheme = (status, MONITOR_STATUS) => {
-  if (status === MONITOR_STATUS.ERROR.value) {
+  if (status === MONITOR_STATUS.ERROR.value || status === MONITOR_STATUS.WARNING.value) {
     return { label: '异常', className: 'is-error', color: '#ff4d4f', bg: '#fff1f0' }
-  }
-  if (status === MONITOR_STATUS.WARNING.value) {
-    return { label: '警告', className: 'is-warning', color: '#faad14', bg: '#fffbe6' }
   }
   return { label: '正常', className: 'is-normal', color: '#52c41a', bg: '#f6ffed' }
 }

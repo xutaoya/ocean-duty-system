@@ -21,8 +21,8 @@
           </div>
 
           <div class="row-alarm">
-            <span v-if="mod.alarmTitle" class="alarm-title">{{ mod.alarmTitle }}</span>
-            <span v-else :class="['alarm-empty', { 'alarm-empty--hint': mod.remark }]">{{ emptyLabel(mod) }}</span>
+            <span v-if="displayTitle(mod)" class="alarm-title">{{ mod.alarmTitle }}</span>
+            <span v-else :class="['alarm-empty', { 'alarm-empty--hint': mod.remark && !isContentCurrent(mod) }]">{{ emptyLabel(mod) }}</span>
             <el-tag
               v-if="mod.alarmLevel"
               :type="rowAccent(mod).tagType"
@@ -36,12 +36,12 @@
         </div>
 
         <div class="row-secondary">
-          <span v-if="mod.alarmCode" class="meta-item">
+          <span v-if="shouldShowCode(mod)" class="meta-item">
             <span class="meta-label">{{ codeLabel(mod) }}</span>
             {{ mod.alarmCode }}
           </span>
           <span class="meta-item">
-            <span class="meta-label">发布</span>
+            <span class="meta-label">最近发布</span>
             {{ formatTime(mod.updateTime) }}
           </span>
           <span class="meta-item">
@@ -107,11 +107,71 @@ export default {
 
     const parseAlarmType = (checkParam) => parseCheckParam(checkParam).type || ''
 
+    const isCmsTablePublish = (mod) => mod.checkType === MODULE_CHECK_TYPE.CMS_TABLE_PUBLISH.value
+
+    const isPublishedToday = (time) => {
+      if (!time) return false
+      const publishDate = time.substring(0, 10)
+      const today = new Date()
+      const todayStr = [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, '0'),
+        String(today.getDate()).padStart(2, '0')
+      ].join('-')
+      return publishDate === todayStr
+    }
+
+    const titleMatchesCurrentMonth = (title) => {
+      if (!title) return false
+      const match = title.match(/(\d{4})年0?(\d{1,2})月/)
+      if (!match) return false
+      const now = new Date()
+      return Number(match[1]) === now.getFullYear() && Number(match[2]) === now.getMonth() + 1
+    }
+
+    const isPublishedCurrentPeriod = (mod) => {
+      const scheduleType = parseCheckParam(mod.checkParam).scheduleType
+      if (scheduleType === 'monthly') {
+        if (titleMatchesCurrentMonth(mod.alarmTitle)) return true
+        if (!mod.updateTime) return false
+        const publishDate = new Date(mod.updateTime)
+        const now = new Date()
+        return publishDate.getFullYear() === now.getFullYear()
+          && publishDate.getMonth() === now.getMonth()
+      }
+      return isPublishedToday(mod.updateTime)
+    }
+
+    const isContentCurrent = (mod) => (
+      isCmsTablePublish(mod) ? isPublishedCurrentPeriod(mod) : isPublishedToday(mod.updateTime)
+    )
+
+    const effectiveStatus = (mod) => {
+      if (isContentCurrent(mod)) {
+        return MONITOR_STATUS.NORMAL.value
+      }
+      return mod.status
+    }
+
     const emptyLabel = (mod) => {
-      if (mod.remark) {
+      if (mod.remark && !isContentCurrent(mod)) {
         return mod.remark
       }
-      return isAlarmModule(mod) ? '暂无最新警报数据' : '暂无最新发布数据'
+      if (!isAlarmModule(mod)) {
+        if (isContentCurrent(mod)) {
+          return ''
+        }
+        if (mod.updateTime) {
+          return parseCheckParam(mod.checkParam).scheduleType === 'monthly'
+            ? '等待本月发布'
+            : '等待今日发布'
+        }
+        return '暂无最新发布数据'
+      }
+      if (isPublishedToday(mod.updateTime)) {
+        return ''
+      }
+      return '暂无最新警报数据'
     }
 
     const cycleLabel = (mod) => {
@@ -125,6 +185,16 @@ export default {
 
     const codeLabel = (mod) => (parseAlarmType(mod.checkParam) === 'bore' ? '海域' : '编号')
 
+    const shouldShowCode = (mod) => {
+      if (mod.moduleName === '近岸预报') return false
+      return !!mod.alarmCode
+    }
+
+    const displayTitle = (mod) => {
+      if (!mod.alarmTitle || isCmsTablePublish(mod)) return false
+      return true
+    }
+
     const formatTime = (time) => {
       if (!time) return '-'
       return time.replace('T', ' ').substring(0, 16)
@@ -134,11 +204,11 @@ export default {
       if (mod.alarmLevel) {
         return getAlarmLevelTheme(mod.alarmLevel)
       }
-      const theme = getMonitorStatusTheme(mod.status, MONITOR_STATUS)
+      const theme = getMonitorStatusTheme(effectiveStatus(mod), MONITOR_STATUS)
       return { accent: theme.color, tagType: 'info' }
     }
 
-    const statusTheme = (mod) => getMonitorStatusTheme(mod.status, MONITOR_STATUS)
+    const statusTheme = (mod) => getMonitorStatusTheme(effectiveStatus(mod), MONITOR_STATUS)
 
     const handleRowClick = async (mod) => {
       if (!isAlarmModule(mod)) {
@@ -163,9 +233,14 @@ export default {
       detailLoading,
       alarmDetail,
       isAlarmModule,
+      isPublishedToday,
+      isContentCurrent,
+      effectiveStatus,
       emptyLabel,
       cycleLabel,
       codeLabel,
+      shouldShowCode,
+      displayTitle,
       formatTime,
       rowAccent,
       statusTheme,

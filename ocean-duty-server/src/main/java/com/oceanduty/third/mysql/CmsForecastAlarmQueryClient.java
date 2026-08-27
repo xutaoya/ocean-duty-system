@@ -93,18 +93,11 @@ public class CmsForecastAlarmQueryClient {
         }
 
         String titleColumn = StringUtils.hasText(titleField) ? "`" + titleField + "`" : "''";
-        String sql;
-        if ("monthly".equals(scheduleType)) {
-            sql = "SELECT " + titleColumn + " AS title, `" + timeField + "` AS publish_time FROM `" + table + "`"
-                    + " WHERE `" + timeField + "` >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"
-                    + (StringUtils.hasText(categoryId) ? " AND category_id = ?" : "")
-                    + " ORDER BY `" + timeField + "` DESC LIMIT 1";
-        } else {
-            sql = "SELECT " + titleColumn + " AS title, `" + timeField + "` AS publish_time FROM `" + table + "`"
-                    + " WHERE `" + timeField + "` >= CURDATE() AND `" + timeField + "` < CURDATE() + INTERVAL 1 DAY"
-                    + (StringUtils.hasText(categoryId) ? " AND category_id = ?" : "")
-                    + " ORDER BY `" + timeField + "` DESC LIMIT 1";
-        }
+        // 月更模块也取最近一次发布（月报常在月末发布，标题归属当月）
+        String sql = "SELECT " + titleColumn + " AS title, `" + timeField + "` AS publish_time FROM `" + table + "`"
+                + " WHERE 1=1"
+                + (StringUtils.hasText(categoryId) ? " AND category_id = ?" : "")
+                + " ORDER BY `" + timeField + "` DESC LIMIT 1";
 
         try (Connection connection = openConnection(datasource);
              PreparedStatement statement = connection.prepareStatement(sql)) {

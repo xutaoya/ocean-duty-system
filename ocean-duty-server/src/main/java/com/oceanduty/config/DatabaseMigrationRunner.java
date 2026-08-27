@@ -48,6 +48,37 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         seedCmsEnvDatasources();
         migrateEnvModuleCheckParams();
         removeLegacyNmefcModules();
+        fixTodayPublishedModuleStatus();
+        fixMonthlyPublishedModuleStatus();
+    }
+
+    /**
+     * 当天已有发布记录的模块修正为正常，并清理过期备注
+     */
+    private void fixTodayPublishedModuleStatus() {
+        int updated = jdbcTemplate.update(
+                "UPDATE monitor_module SET status = 1, remark = NULL "
+                        + "WHERE deleted_flag = 0 AND data_update_time IS NOT NULL "
+                        + "AND date(data_update_time) = date('now', 'localtime')");
+        if (updated > 0) {
+            log.info("已修正 {} 条当日已发布模块的状态为正常", updated);
+        }
+    }
+
+    /**
+     * 标题已归属当月的月更模块修正为正常（月报常在月末发布）
+     */
+    private void fixMonthlyPublishedModuleStatus() {
+        int updated = jdbcTemplate.update(
+                "UPDATE monitor_module SET status = 1, remark = NULL "
+                        + "WHERE deleted_flag = 0 AND status = 0 "
+                        + "AND check_param LIKE '%\"scheduleType\":\"monthly\"%' "
+                        + "AND alarm_title IS NOT NULL "
+                        + "AND alarm_title LIKE '%' || strftime('%Y', 'now', 'localtime') || '年' "
+                        + "|| CAST(CAST(strftime('%m', 'now', 'localtime') AS INTEGER) AS TEXT) || '月%'");
+        if (updated > 0) {
+            log.info("已修正 {} 条当月月报模块的状态为正常", updated);
+        }
     }
 
     /**
@@ -97,7 +128,7 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         updateModuleCheckParam(28L,
                 "{\"datasourceId\":\"2\",\"timeField\":\"create_date\",\"titleField\":\"name\",\"scheduleType\":\"daily\"}");
         updateModuleCheckParam(29L,
-                "{\"datasourceId\":\"3\",\"timeField\":\"create_date\",\"titleField\":\"code\",\"scheduleType\":\"daily\"}");
+                "{\"datasourceId\":\"3\",\"timeField\":\"create_date\",\"titleField\":\"name\",\"scheduleType\":\"daily\"}");
         updateModuleCheckParam(30L,
                 "{\"datasourceId\":\"4\",\"timeField\":\"create_date\",\"titleField\":\"title\",\"scheduleType\":\"monthly\",\"categoryId\":\"1190087852779372544\"}");
     }

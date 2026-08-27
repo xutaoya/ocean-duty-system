@@ -22,6 +22,8 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 模块更新时间检测服务
@@ -32,6 +34,7 @@ import java.util.Map;
 public class MonitorModuleCheckService {
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private static final Pattern TITLE_MONTH_PATTERN = Pattern.compile("(\\d{4})年0?(\\d{1,2})月");
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final MonitorModuleDao monitorModuleDao;
@@ -85,7 +88,7 @@ public class MonitorModuleCheckService {
             module.setAlarmCode(null);
             module.setAlarmLevel(null);
             module.setLastCheckTime(LocalDateTime.now());
-            module.setStatus(MonitorStatusConst.WARNING);
+            module.setStatus(MonitorStatusConst.ERROR);
             module.setRemark(datasourceIssue);
             monitorModuleDao.updateById(module);
             log.info("模块检测跳过: {} -> remark={}", module.getModuleName(), datasourceIssue);
@@ -98,7 +101,7 @@ public class MonitorModuleCheckService {
         module.setAlarmCode(result.alarmCode());
         module.setAlarmLevel(result.alarmLevel());
         module.setLastCheckTime(LocalDateTime.now());
-        module.setStatus(evaluateStatus(module, result.updateTime(), params));
+        module.setStatus(evaluateStatus(module, result.updateTime(), result.alarmTitle(), params));
         if (result.updateTime() == null) {
             module.setRemark(resolveEmptyRemark(params));
         } else {
@@ -196,11 +199,12 @@ public class MonitorModuleCheckService {
     /**
      * 根据预期更新时间和实际更新时间判断状态
      */
-    private Integer evaluateStatus(MonitorModuleEntity module, LocalDateTime updateTime, Map<String, String> params) {
+    private Integer evaluateStatus(MonitorModuleEntity module, LocalDateTime updateTime, String alarmTitle,
+                                   Map<String, String> params) {
         if (ModuleCheckTypeConst.CMS_TABLE_PUBLISH.equals(module.getCheckType())) {
             String scheduleType = params.getOrDefault("scheduleType", "daily");
             if ("monthly".equals(scheduleType)) {
-                return evaluateMonthlyStatus(updateTime);
+                return evaluateMonthlyStatus(updateTime, alarmTitle);
             }
             return evaluateDailyStatus(module, updateTime);
         }
@@ -212,66 +216,76 @@ public class MonitorModuleCheckService {
             return MonitorStatusConst.ERROR;
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        if (!StringUtils.hasText(module.getExpectedTime())) {
-            return updateTime.isAfter(now.minusHours(24)) ? MonitorStatusConst.NORMAL : MonitorStatusConst.WARNING;
-        }
-
-        LocalTime expected = LocalTime.parse(module.getExpectedTime(), TIME_FORMATTER);
-        LocalDateTime expectedToday = LocalDateTime.of(LocalDate.now(), expected);
-        if (updateTime.isAfter(expectedToday) || updateTime.isEqual(expectedToday)) {
-            return MonitorStatusConst.NORMAL;
-        }
-        if (now.isAfter(expectedToday.plusHours(2))) {
-            return MonitorStatusConst.ERROR;
-        }
-        if (now.isAfter(expectedToday)) {
-            return MonitorStatusConst.WARNING;
-        }
-        return updateTime.toLocalDate().isBefore(LocalDate.now()) ? MonitorStatusConst.WARNING : MonitorStatusConst.NORMAL;
-    }
-
-    private Integer evaluateDailyStatus(MonitorModuleEntity module, LocalDateTime updateTime) {
-        LocalDateTime now = LocalDateTime.now();
         LocalDate today = LocalDate.now();
-
-        if (updateTime != null && updateTime.toLocalDate().equals(today)) {
+        // 当天任意时间发布均视为正常
+        if (updateTime.toLocalDate().equals(today)) {
             return MonitorStatusConst.NORMAL;
         }
 
         if (!StringUtils.hasText(module.getExpectedTime())) {
-            return updateTime == null ? MonitorStatusConst.ERROR : MonitorStatusConst.WARNING;
+            return updateTime.isAfter(LocalDateTime.now().minusHours(24))
+                    ? MonitorStatusConst.NORMAL
+                    : MonitorStatusConst.ERROR;
         }
 
         LocalTime expected = LocalTime.parse(module.getExpectedTime(), TIME_FORMATTER);
         LocalDateTime deadline = LocalDateTime.of(today, expected);
-        if (now.isAfter(deadline.plusHours(2))) {
-            return MonitorStatusConst.ERROR;
+        if (LocalDateTime.now().isBefore(deadline)) {
+            return MonitorStatusConst.NORMAL;
         }
-        if (now.isAfter(deadline)) {
-            return MonitorStatusConst.WARNING;
-        }
-        return updateTime == null ? MonitorStatusConst.WARNING : MonitorStatusConst.WARNING;
+
+        return MonitorStatusConst.ERROR;
     }
 
-    private Integer evaluateMonthlyStatus(LocalDateTime updateTime) {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDate today = LocalDate.now();
+    private Integer evaluateDailyStatus(MonitorModuleEntity module, LocalDateTime updateTime) {
+        if (updateTime == null) {
+            return MonitorStatusConst.ERROR;
+        }
 
+        LocalDate today = LocalDate.now();
+        // 当天任意时间发布均视为正常，不要求达到预期发布时间
+        if (updateTime.toLocalDate().equals(today)) {
+            return MonitorStatusConst.NORMAL;
+        }
+
+        if (!StringUtils.hasText(module.getExpectedTime())) {
+            return MonitorStatusConst.ERROR;
+        }
+
+        LocalTime expected = LocalTime.parse(module.getExpectedTime(), TIME_FORMATTER);
+        LocalDateTime deadline = LocalDateTime.of(today, expected);
+        if (LocalDateTime.now().isBefore(deadline)) {
+            return MonitorStatusConst.NORMAL;
+        }
+
+        return MonitorStatusConst.ERROR;
+    }
+
+    private Integer evaluateMonthlyStatus(LocalDateTime updateTime, String alarmTitle) {
+        LocalDate today = LocalDate.now();
         if (updateTime != null
                 && updateTime.getYear() == today.getYear()
                 && updateTime.getMonthValue() == today.getMonthValue()) {
             return MonitorStatusConst.NORMAL;
         }
+        if (titleMatchesCurrentMonth(alarmTitle)) {
+            return MonitorStatusConst.NORMAL;
+        }
+        return MonitorStatusConst.ERROR;
+    }
 
-        LocalDateTime monthStart = today.withDayOfMonth(1).atStartOfDay();
-        if (now.isAfter(monthStart.plusHours(2))) {
-            return MonitorStatusConst.ERROR;
+    private boolean titleMatchesCurrentMonth(String title) {
+        if (!StringUtils.hasText(title)) {
+            return false;
         }
-        if (now.isAfter(monthStart)) {
-            return MonitorStatusConst.WARNING;
+        Matcher matcher = TITLE_MONTH_PATTERN.matcher(title);
+        if (!matcher.find()) {
+            return false;
         }
-        return MonitorStatusConst.WARNING;
+        int year = Integer.parseInt(matcher.group(1));
+        int month = Integer.parseInt(matcher.group(2));
+        LocalDate today = LocalDate.now();
+        return year == today.getYear() && month == today.getMonthValue();
     }
 
     private String resolveEmptyRemark(Map<String, String> params) {
