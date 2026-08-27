@@ -78,6 +78,34 @@ public class CmsForecastAlarmQueryClient {
     }
 
     /**
+     * 查询表最新更新时间（MySQL / PostgreSQL）
+     */
+    public CmsTablePublishRecord fetchLatestUpdate(MonitorDatasourceEntity datasource, String table, String timeField) {
+        if (datasource == null || !StringUtils.hasText(table) || !StringUtils.hasText(timeField)) {
+            return null;
+        }
+        validateIdentifier(table);
+        validateIdentifier(timeField);
+
+        String sql = buildLatestUpdateSql(datasource.getDsType(), table, timeField);
+        try (Connection connection = openConnection(datasource);
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+            if (!resultSet.next()) {
+                return null;
+            }
+            Timestamp publishTime = resultSet.getTimestamp("publish_time");
+            return CmsTablePublishRecord.builder()
+                    .publishTime(publishTime == null ? null : publishTime.toLocalDateTime())
+                    .build();
+        } catch (SQLException e) {
+            log.error("查询表最新更新时间失败: dsId={}, table={}, msg={}",
+                    datasource.getId(), table, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * 查询 CMS 表当日/当月最新发布记录
      */
     public CmsTablePublishRecord fetchTablePublish(MonitorDatasourceEntity datasource, String table,
@@ -150,6 +178,16 @@ public class CmsForecastAlarmQueryClient {
     }
 
     private Connection openConnection(MonitorDatasourceEntity datasource) throws SQLException {
+        if (isPostgresql(datasource.getDsType())) {
+            String url = String.format(
+                    "jdbc:postgresql://%s:%d/%s?connectTimeout=%d",
+                    datasource.getHost(),
+                    datasource.getPort() == null ? 5432 : datasource.getPort(),
+                    datasource.getDatabaseName(),
+                    CONNECT_TIMEOUT_SECONDS);
+            return DriverManager.getConnection(url, datasource.getUsername(),
+                    credentialEncryptUtil.decrypt(datasource.getPassword()));
+        }
         String url = String.format(
                 "jdbc:mysql://%s:%d/%s?useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=%d&serverTimezone=Asia/Shanghai",
                 datasource.getHost(),
@@ -158,6 +196,24 @@ public class CmsForecastAlarmQueryClient {
                 CONNECT_TIMEOUT_SECONDS * 1000);
         return DriverManager.getConnection(url, datasource.getUsername(),
                 credentialEncryptUtil.decrypt(datasource.getPassword()));
+    }
+
+    private boolean isPostgresql(String dsType) {
+        return "postgresql".equalsIgnoreCase(dsType) || "postgres".equalsIgnoreCase(dsType);
+    }
+
+    private String quoteIdentifier(String dsType, String identifier) {
+        if (isPostgresql(dsType)) {
+            return identifier;
+        }
+        return "`" + identifier + "`";
+    }
+
+    private String buildLatestUpdateSql(String dsType, String table, String timeField) {
+        String timeColumn = quoteIdentifier(dsType, timeField);
+        String tableName = quoteIdentifier(dsType, table);
+        return "SELECT " + timeColumn + " AS publish_time FROM " + tableName
+                + " ORDER BY " + timeColumn + " DESC LIMIT 1";
     }
 
     private void validateIdentifier(String identifier) {

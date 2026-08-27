@@ -31,4 +31,7 @@ public final class ModuleCheckTypeConst {
 
     /** CMS 表发布时间查询（环境预报等） */
     public static final String CMS_TABLE_PUBLISH = "CMS_TABLE_PUBLISH";
+
+    /** 智能网格表更新时间查询 */
+    public static final String CMS_GRID_UPDATE = "CMS_GRID_UPDATE";
 }

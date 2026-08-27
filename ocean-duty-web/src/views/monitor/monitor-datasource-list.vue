@@ -173,6 +173,7 @@
           <el-form-item label="类型" prop="dsType">
             <el-select v-model="form.dsType" style="width: 100%">
               <el-option label="MySQL" value="mysql" />
+            <el-option label="PostgreSQL" value="postgresql" />
             </el-select>
           </el-form-item>
           <el-form-item label="主机" prop="host">

@@ -97,6 +97,22 @@
       </div>
     </div>
 
+    <!-- 智能网格模块 -->
+    <div class="section">
+      <div class="section-header">
+        <h3 class="section-title">
+          <el-icon><Grid /></el-icon>
+          智能网格 · 最后更新时间
+        </h3>
+        <span class="section-count">中国海洋预报网 · {{ smartGridModules.length }} 个模块</span>
+      </div>
+      <MonitorDisasterPanel v-if="smartGridModules.length" :modules="smartGridModules" />
+      <div v-else class="empty-state empty-state--info">
+        <el-icon :size="36"><InfoFilled /></el-icon>
+        <p>暂无智能网格模块数据</p>
+      </div>
+    </div>
+
     </template>
   </div>
   <!-- end 监控首页 -->
@@ -147,6 +163,10 @@ export default {
       modules.value.filter(m => m.moduleCategory === MODULE_CATEGORY.ENV_FORECAST.value)
     )
 
+    const smartGridModules = computed(() =>
+      modules.value.filter(m => m.moduleCategory === MODULE_CATEGORY.SMART_GRID.value)
+    )
+
     /**
      * 加载仪表盘数据
      */
@@ -189,6 +209,7 @@ export default {
       statCards,
       disasterModules,
       envForecastModules,
+      smartGridModules,
       handleCheck
     }
   }

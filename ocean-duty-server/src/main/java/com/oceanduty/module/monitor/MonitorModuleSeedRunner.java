@@ -49,10 +49,25 @@ public class MonitorModuleSeedRunner implements CommandLineRunner {
                 envModule(28L, 1L, "海区预报", "https://www.oceanguide.org.cn/IndexHome",
                         2L, "name", "15:30"),
                 envModule(29L, 1L, "近岸预报", "https://www.oceanguide.org.cn/IndexHome",
-                        3L, "name", "09:00"),
+                        3L, "code", "09:00"),
                 envMonthlyModule(30L, 1L, "月预报", "https://www.oceanguide.org.cn/IndexHome",
-                        4L, "1190087852779372544", "00:00")
+                        4L, "1190087852779372544", "00:00"),
+
+                gridModule(31L, 1L, "风", 5L, "wind"),
+                gridModule(32L, 1L, "海浪", 6L, "wave"),
+                gridModule(33L, 1L, "海流", 7L, "current"),
+                gridModule(34L, 1L, "海温", 8L, "sst"),
+                gridModule(35L, 1L, "天文潮", 9L, "storm_tide")
         );
+    }
+
+    private MonitorModuleEntity gridModule(Long id, Long siteId, String name, Long datasourceId, String windowPreset) {
+        return module(id, siteId, name, "https://www.oceanguide.org.cn/IndexHome",
+                ModuleCategoryConst.SMART_GRID, "中国海洋预报网--智能网格",
+                ModuleCheckTypeConst.CMS_GRID_UPDATE,
+                "{\"datasourceId\":\"" + datasourceId + "\",\"timeField\":\"update_date\",\"windowPreset\":\""
+                        + windowPreset + "\"}",
+                "00:00");
     }
 
     private MonitorModuleEntity envModule(Long id, Long siteId, String name, String url,

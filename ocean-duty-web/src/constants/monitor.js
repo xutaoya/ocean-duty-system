@@ -28,6 +28,10 @@ export const MODULE_CATEGORY = {
   ENV_FORECAST: {
     value: 'env_forecast',
     desc: '环境预报'
+  },
+  SMART_GRID: {
+    value: 'smart_grid',
+    desc: '智能网格'
   }
 }
 

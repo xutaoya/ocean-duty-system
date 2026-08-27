@@ -21,7 +21,7 @@
           </div>
 
           <div class="row-alarm">
-            <span v-if="displayTitle(mod)" class="alarm-title">{{ mod.alarmTitle }}</span>
+            <span v-if="displayTitle(mod)" class="alarm-title">{{ displayTitleText(mod) }}</span>
             <span v-else :class="['alarm-empty', { 'alarm-empty--hint': mod.remark && !isContentCurrent(mod) }]">{{ emptyLabel(mod) }}</span>
             <el-tag
               v-if="mod.alarmLevel"
@@ -41,7 +41,7 @@
             {{ mod.alarmCode }}
           </span>
           <span class="meta-item">
-            <span class="meta-label">最近发布</span>
+            <span class="meta-label">{{ isGridModule(mod) ? '最近更新' : '最近发布' }}</span>
             {{ formatTime(mod.updateTime) }}
           </span>
           <span class="meta-item">
@@ -105,6 +105,16 @@ export default {
 
     const isAlarmModule = (mod) => mod.checkType === MODULE_CHECK_TYPE.CMS_FORECAST_ALARM.value
 
+    const isGridModule = (mod) => mod.checkType === MODULE_CHECK_TYPE.CMS_GRID_UPDATE.value
+
+    const GRID_CYCLE_LABELS = {
+      wind: '07-19时/19-次日7时 · 13h',
+      wave: '08-22时/22-次日8时 · 15h/11h',
+      current: '08:30-17:30/17:30-次日8:30 · 12h/16h',
+      sst: '08:30-17:30/17:30-次日8:30 · 12h/16h',
+      storm_tide: '24小时内'
+    }
+
     const parseAlarmType = (checkParam) => parseCheckParam(checkParam).type || ''
 
     const isCmsTablePublish = (mod) => mod.checkType === MODULE_CHECK_TYPE.CMS_TABLE_PUBLISH.value
@@ -147,6 +157,9 @@ export default {
     )
 
     const effectiveStatus = (mod) => {
+      if (isGridModule(mod)) {
+        return mod.status
+      }
       if (isContentCurrent(mod)) {
         return MONITOR_STATUS.NORMAL.value
       }
@@ -154,6 +167,12 @@ export default {
     }
 
     const emptyLabel = (mod) => {
+      if (isGridModule(mod)) {
+        if (mod.remark) {
+          return mod.remark
+        }
+        return mod.updateTime ? '' : '暂无最新更新数据'
+      }
       if (mod.remark && !isContentCurrent(mod)) {
         return mod.remark
       }
@@ -175,6 +194,10 @@ export default {
     }
 
     const cycleLabel = (mod) => {
+      const preset = parseCheckParam(mod.checkParam).windowPreset
+      if (preset && GRID_CYCLE_LABELS[preset]) {
+        return GRID_CYCLE_LABELS[preset]
+      }
       const scheduleType = parseCheckParam(mod.checkParam).scheduleType
       const time = mod.expectedTime || '-'
       if (scheduleType === 'monthly') {
@@ -191,8 +214,18 @@ export default {
     }
 
     const displayTitle = (mod) => {
+      if (isGridModule(mod)) {
+        return !!mod.updateTime
+      }
       if (!mod.alarmTitle || isCmsTablePublish(mod)) return false
       return true
+    }
+
+    const displayTitleText = (mod) => {
+      if (isGridModule(mod)) {
+        return `更新时间 ${formatTime(mod.updateTime)}`
+      }
+      return mod.alarmTitle
     }
 
     const formatTime = (time) => {
@@ -233,6 +266,7 @@ export default {
       detailLoading,
       alarmDetail,
       isAlarmModule,
+      isGridModule,
       isPublishedToday,
       isContentCurrent,
       effectiveStatus,
@@ -241,6 +275,7 @@ export default {
       codeLabel,
       shouldShowCode,
       displayTitle,
+      displayTitleText,
       formatTime,
       rowAccent,
       statusTheme,

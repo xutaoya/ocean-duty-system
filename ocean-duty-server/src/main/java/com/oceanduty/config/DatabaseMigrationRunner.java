@@ -3,11 +3,13 @@ package com.oceanduty.config;
 import com.oceanduty.util.CredentialEncryptUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.HashSet;
 import java.util.List;
@@ -26,6 +28,9 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
     private final CredentialEncryptUtil credentialEncryptUtil;
+
+    @Value("${ocean-duty.datasource.grid.initial-password:}")
+    private String gridInitialPassword;
 
     @Override
     public void run(String... args) {
@@ -46,6 +51,7 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         migratePlainPasswords();
         migrateDatasourcePasswords();
         seedCmsEnvDatasources();
+        seedGridDatasources();
         migrateEnvModuleCheckParams();
         removeLegacyNmefcModules();
         fixTodayPublishedModuleStatus();
@@ -122,13 +128,41 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
     }
 
     /**
+     * 补全智能网格 PostgreSQL 数据源
+     */
+    private void seedGridDatasources() {
+        if (!StringUtils.hasText(gridInitialPassword)) {
+            return;
+        }
+        String encryptedPassword = credentialEncryptUtil.encrypt(gridInitialPassword);
+        insertGridDatasource(5L, "中国海洋预报网PG-风", "app_wind_speed_grid", encryptedPassword);
+        insertGridDatasource(6L, "中国海洋预报网PG-海浪", "app_wave_height_grid", encryptedPassword);
+        insertGridDatasource(7L, "中国海洋预报网PG-海流", "app_current_speed_grid", encryptedPassword);
+        insertGridDatasource(8L, "中国海洋预报网PG-海温", "app_sst_grid", encryptedPassword);
+        insertGridDatasource(9L, "中国海洋预报网PG-天文潮", "app_storm_tide_grid", encryptedPassword);
+    }
+
+    private void insertGridDatasource(long id, String name, String tableName, String encryptedPassword) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM monitor_datasource WHERE id = ? AND deleted_flag = 0", Integer.class, id);
+        if (count != null && count > 0) {
+            return;
+        }
+        jdbcTemplate.update(
+                "INSERT INTO monitor_datasource (id, ds_name, ds_type, host, port, database_name, username, password, table_name, status, deleted_flag) "
+                        + "VALUES (?, ?, 'postgresql', ?, ?, ?, ?, ?, ?, 1, 0)",
+                id, name, "116.204.52.24", 3141, "hyyj", "ocean_work", encryptedPassword, tableName);
+        log.info("已补全数据源: {} ({})", name, tableName);
+    }
+
+    /**
      * 环境预报模块改为引用独立数据源，不再在检测参数中写表名
      */
     private void migrateEnvModuleCheckParams() {
         updateModuleCheckParam(28L,
                 "{\"datasourceId\":\"2\",\"timeField\":\"create_date\",\"titleField\":\"name\",\"scheduleType\":\"daily\"}");
         updateModuleCheckParam(29L,
-                "{\"datasourceId\":\"3\",\"timeField\":\"create_date\",\"titleField\":\"name\",\"scheduleType\":\"daily\"}");
+                "{\"datasourceId\":\"3\",\"timeField\":\"create_date\",\"titleField\":\"code\",\"scheduleType\":\"daily\"}");
         updateModuleCheckParam(30L,
                 "{\"datasourceId\":\"4\",\"timeField\":\"create_date\",\"titleField\":\"title\",\"scheduleType\":\"monthly\",\"categoryId\":\"1190087852779372544\"}");
     }

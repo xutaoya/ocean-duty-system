@@ -16,4 +16,7 @@ public final class ModuleCategoryConst {
 
     /** 环境预报 */
     public static final String ENV_FORECAST = "env_forecast";
+
+    /** 智能网格 */
+    public static final String SMART_GRID = "smart_grid";
 }

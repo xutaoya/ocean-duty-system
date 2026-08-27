@@ -122,7 +122,8 @@ public class MonitorModuleCheckService {
 
     private boolean isCmsCheckType(String checkType) {
         return ModuleCheckTypeConst.CMS_FORECAST_ALARM.equals(checkType)
-                || ModuleCheckTypeConst.CMS_TABLE_PUBLISH.equals(checkType);
+                || ModuleCheckTypeConst.CMS_TABLE_PUBLISH.equals(checkType)
+                || ModuleCheckTypeConst.CMS_GRID_UPDATE.equals(checkType);
     }
 
     private ModuleCheckResult fetchCheckResult(String checkType, Map<String, String> params) {
@@ -134,6 +135,9 @@ public class MonitorModuleCheckService {
         }
         if (ModuleCheckTypeConst.CMS_TABLE_PUBLISH.equals(checkType)) {
             return fetchCmsTablePublish(params);
+        }
+        if (ModuleCheckTypeConst.CMS_GRID_UPDATE.equals(checkType)) {
+            return fetchCmsGridUpdate(params);
         }
         LocalDateTime updateTime = fetchUpdateTime(checkType, params);
         return new ModuleCheckResult(updateTime, null, null, null);
@@ -181,6 +185,27 @@ public class MonitorModuleCheckService {
         return new ModuleCheckResult(record.getPublishTime(), record.getTitle(), null, null);
     }
 
+    private ModuleCheckResult fetchCmsGridUpdate(Map<String, String> params) {
+        Long datasourceId = parseLong(params.get("datasourceId"));
+        String timeField = params.getOrDefault("timeField", "update_date");
+        if (datasourceId == null) {
+            return ModuleCheckResult.empty();
+        }
+        MonitorDatasourceEntity datasource = monitorDatasourceDao.selectById(datasourceId);
+        if (datasource == null || datasource.getStatus() != null && datasource.getStatus() == 0) {
+            return ModuleCheckResult.empty();
+        }
+        String table = resolveTableName(params, datasource);
+        if (!StringUtils.hasText(table)) {
+            return ModuleCheckResult.empty();
+        }
+        CmsTablePublishRecord record = cmsForecastAlarmQueryClient.fetchLatestUpdate(datasource, table, timeField);
+        if (record == null || record.getPublishTime() == null) {
+            return ModuleCheckResult.empty();
+        }
+        return new ModuleCheckResult(record.getPublishTime(), null, null, null);
+    }
+
     private LocalDateTime fetchUpdateTime(String checkType, Map<String, String> params) {
         return switch (checkType) {
             case ModuleCheckTypeConst.WARN_HISTORY -> nmefcApiClient.fetchWarnHistoryLatest(
@@ -201,6 +226,9 @@ public class MonitorModuleCheckService {
      */
     private Integer evaluateStatus(MonitorModuleEntity module, LocalDateTime updateTime, String alarmTitle,
                                    Map<String, String> params) {
+        if (ModuleCheckTypeConst.CMS_GRID_UPDATE.equals(module.getCheckType())) {
+            return evaluateGridWindowStatus(updateTime, params.get("windowPreset"));
+        }
         if (ModuleCheckTypeConst.CMS_TABLE_PUBLISH.equals(module.getCheckType())) {
             String scheduleType = params.getOrDefault("scheduleType", "daily");
             if ("monthly".equals(scheduleType)) {
@@ -261,6 +289,17 @@ public class MonitorModuleCheckService {
         return MonitorStatusConst.ERROR;
     }
 
+    private Integer evaluateGridWindowStatus(LocalDateTime updateTime, String windowPreset) {
+        if (updateTime == null) {
+            return MonitorStatusConst.ERROR;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (GridWindowEvaluator.isUpdateFresh(updateTime, windowPreset, now)) {
+            return MonitorStatusConst.NORMAL;
+        }
+        return MonitorStatusConst.ERROR;
+    }
+
     private Integer evaluateMonthlyStatus(LocalDateTime updateTime, String alarmTitle) {
         LocalDate today = LocalDate.now();
         if (updateTime != null
@@ -289,6 +328,9 @@ public class MonitorModuleCheckService {
     }
 
     private String resolveEmptyRemark(Map<String, String> params) {
+        if (StringUtils.hasText(params.get("windowPreset"))) {
+            return "未获取到最新更新时间";
+        }
         if ("monthly".equals(params.get("scheduleType"))) {
             return "未获取到当月发布记录";
         }

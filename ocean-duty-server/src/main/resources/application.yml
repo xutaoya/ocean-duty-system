@@ -55,6 +55,8 @@ ocean-duty:
     cms:
       # 仅首次初始化默认 CMS 数据源时使用，不落库明文；生产请用环境变量注入
       initial-password: ${CMS_DATASOURCE_PASSWORD:}
+    grid:
+      initial-password: ${GRID_DATASOURCE_PASSWORD:}
 
 logging:
   level:

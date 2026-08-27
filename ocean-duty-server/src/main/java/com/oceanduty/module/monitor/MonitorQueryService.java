@@ -112,6 +112,9 @@ public class MonitorQueryService {
         if (ModuleCategoryConst.ENV_FORECAST.equals(category)) {
             return "环境预报";
         }
+        if (ModuleCategoryConst.SMART_GRID.equals(category)) {
+            return "智能网格";
+        }
         return "灾害预警";
     }
 }

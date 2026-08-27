@@ -94,7 +94,8 @@ export default {
   setup() {
     const listSections = [
       { key: 'disaster', rows: 4 },
-      { key: 'env', rows: 3 }
+      { key: 'env', rows: 3 },
+      { key: 'grid', rows: 5 }
     ]
 
     return { listSections }

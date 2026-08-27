@@ -79,6 +79,26 @@ export const MODULE_CHECK_TYPE = {
       },
       { key: 'categoryId', label: '分类ID', placeholder: '月预报等可选，如 1190087852779372544' }
     ]
+  },
+  CMS_GRID_UPDATE: {
+    value: 'CMS_GRID_UPDATE',
+    desc: '智能网格表更新',
+    fields: [
+      { key: 'datasourceId', label: '数据源', inputType: 'datasource', placeholder: '请选择数据源' },
+      { key: 'timeField', label: '时间字段', placeholder: '如 update_date' },
+      {
+        key: 'windowPreset',
+        label: '时段规则',
+        placeholder: '选择预设规则',
+        options: [
+          { value: 'wind', label: '风 · 13小时/时段' },
+          { value: 'wave', label: '海浪 · 15h/11h' },
+          { value: 'current', label: '海流 · 12h/16h' },
+          { value: 'sst', label: '海温 · 12h/16h' },
+          { value: 'storm_tide', label: '天文潮 · 24小时' }
+        ]
+      }
+    ]
   }
 }
 

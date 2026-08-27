@@ -124,7 +124,9 @@ public class MonitorModuleManageService {
 
     private void validateModule(MonitorModuleDTO moduleDTO) {
         if (!ModuleCategoryConst.DISASTER_WARNING.equals(moduleDTO.getModuleCategory())
-                && !ModuleCategoryConst.FORECAST_SERVICE.equals(moduleDTO.getModuleCategory())) {
+                && !ModuleCategoryConst.FORECAST_SERVICE.equals(moduleDTO.getModuleCategory())
+                && !ModuleCategoryConst.ENV_FORECAST.equals(moduleDTO.getModuleCategory())
+                && !ModuleCategoryConst.SMART_GRID.equals(moduleDTO.getModuleCategory())) {
             throw new BusinessException(ResponseCodeConst.ERROR_PARAM, "模块分类不正确");
         }
         if (!moduleDTO.getExpectedTime().matches("\\d{2}:\\d{2}")) {
@@ -144,8 +146,7 @@ public class MonitorModuleManageService {
                 .moduleName(entity.getModuleName())
                 .moduleUrl(entity.getModuleUrl())
                 .moduleCategory(entity.getModuleCategory())
-                .moduleCategoryName(ModuleCategoryConst.FORECAST_SERVICE.equals(entity.getModuleCategory())
-                        ? "预报服务" : "灾害预警")
+                .moduleCategoryName(resolveCategoryName(entity.getModuleCategory()))
                 .moduleGroup(entity.getModuleGroup())
                 .checkType(entity.getCheckType())
                 .checkParam(entity.getCheckParam())
@@ -171,5 +172,18 @@ public class MonitorModuleManageService {
                 .checkParam(dto.getCheckParam())
                 .expectedTime(dto.getExpectedTime())
                 .build();
+    }
+
+    private String resolveCategoryName(String category) {
+        if (ModuleCategoryConst.FORECAST_SERVICE.equals(category)) {
+            return "预报服务";
+        }
+        if (ModuleCategoryConst.ENV_FORECAST.equals(category)) {
+            return "环境预报";
+        }
+        if (ModuleCategoryConst.SMART_GRID.equals(category)) {
+            return "智能网格";
+        }
+        return "灾害预警";
     }
 }
