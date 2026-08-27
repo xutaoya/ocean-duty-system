@@ -24,6 +24,10 @@ export const MODULE_CATEGORY = {
   FORECAST_SERVICE: {
     value: 'forecast_service',
     desc: '预报服务'
+  },
+  ENV_FORECAST: {
+    value: 'env_forecast',
+    desc: '环境预报'
   }
 }
 

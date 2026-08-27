@@ -33,7 +33,7 @@ public class MonitorQueryService {
      * 获取监控仪表盘数据
      */
     public DashboardVO getDashboard() {
-        monitorModuleCheckService.checkCmsForecastAlarmModules();
+        monitorModuleCheckService.checkCmsModules();
         List<MonitorSiteVO> sites = listAllSites();
         List<MonitorSiteVO> abnormalSites = sites.stream()
                 .filter(site -> MonitorStatusConst.ERROR.equals(site.getStatus()))
@@ -108,6 +108,9 @@ public class MonitorQueryService {
     private String resolveCategoryName(String category) {
         if (ModuleCategoryConst.FORECAST_SERVICE.equals(category)) {
             return "预报服务";
+        }
+        if (ModuleCategoryConst.ENV_FORECAST.equals(category)) {
+            return "环境预报";
         }
         return "灾害预警";
     }

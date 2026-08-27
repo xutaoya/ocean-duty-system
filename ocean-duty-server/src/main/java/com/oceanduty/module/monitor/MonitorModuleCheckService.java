@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oceanduty.constant.ModuleCheckTypeConst;
 import com.oceanduty.constant.MonitorStatusConst;
 import com.oceanduty.module.monitor.domain.CmsForecastAlarmRecord;
+import com.oceanduty.module.monitor.domain.CmsTablePublishRecord;
 import com.oceanduty.module.monitor.domain.MonitorDatasourceEntity;
 import com.oceanduty.module.monitor.domain.MonitorModuleEntity;
 import com.oceanduty.third.mysql.CmsForecastAlarmQueryClient;
@@ -54,15 +55,22 @@ public class MonitorModuleCheckService {
     }
 
     /**
-     * 检测 CMS 灾害预警模块
+     * 检测 CMS 模块（灾害预警 + 环境预报等）
      */
-    public void checkCmsForecastAlarmModules() {
+    public void checkCmsModules() {
         List<MonitorModuleEntity> modules = monitorModuleDao.selectList(null);
         for (MonitorModuleEntity module : modules) {
-            if (ModuleCheckTypeConst.CMS_FORECAST_ALARM.equals(module.getCheckType())) {
+            if (isCmsCheckType(module.getCheckType())) {
                 checkModule(module);
             }
         }
+    }
+
+    /**
+     * 检测 CMS 灾害预警模块（兼容旧调用）
+     */
+    public void checkCmsForecastAlarmModules() {
+        checkCmsModules();
     }
 
     /**
@@ -70,15 +78,29 @@ public class MonitorModuleCheckService {
      */
     public void checkModule(MonitorModuleEntity module) {
         Map<String, String> params = parseCheckParam(module.getCheckParam());
+        String datasourceIssue = resolveDatasourceIssue(module.getCheckType(), params);
+        if (datasourceIssue != null) {
+            module.setDataUpdateTime(null);
+            module.setAlarmTitle(null);
+            module.setAlarmCode(null);
+            module.setAlarmLevel(null);
+            module.setLastCheckTime(LocalDateTime.now());
+            module.setStatus(MonitorStatusConst.WARNING);
+            module.setRemark(datasourceIssue);
+            monitorModuleDao.updateById(module);
+            log.info("模块检测跳过: {} -> remark={}", module.getModuleName(), datasourceIssue);
+            return;
+        }
+
         ModuleCheckResult result = fetchCheckResult(module.getCheckType(), params);
         module.setDataUpdateTime(result.updateTime());
         module.setAlarmTitle(result.alarmTitle());
         module.setAlarmCode(result.alarmCode());
         module.setAlarmLevel(result.alarmLevel());
         module.setLastCheckTime(LocalDateTime.now());
-        module.setStatus(evaluateStatus(module, result.updateTime()));
+        module.setStatus(evaluateStatus(module, result.updateTime(), params));
         if (result.updateTime() == null) {
-            module.setRemark("未获取到更新时间");
+            module.setRemark(resolveEmptyRemark(params));
         } else {
             module.setRemark(null);
         }
@@ -89,10 +111,15 @@ public class MonitorModuleCheckService {
     }
 
     private boolean shouldCheckModule(MonitorModuleEntity module) {
-        if (ModuleCheckTypeConst.CMS_FORECAST_ALARM.equals(module.getCheckType())) {
+        if (isCmsCheckType(module.getCheckType())) {
             return true;
         }
         return moduleCheckEnabled;
+    }
+
+    private boolean isCmsCheckType(String checkType) {
+        return ModuleCheckTypeConst.CMS_FORECAST_ALARM.equals(checkType)
+                || ModuleCheckTypeConst.CMS_TABLE_PUBLISH.equals(checkType);
     }
 
     private ModuleCheckResult fetchCheckResult(String checkType, Map<String, String> params) {
@@ -101,6 +128,9 @@ public class MonitorModuleCheckService {
         }
         if (ModuleCheckTypeConst.CMS_FORECAST_ALARM.equals(checkType)) {
             return fetchCmsForecastAlarm(params);
+        }
+        if (ModuleCheckTypeConst.CMS_TABLE_PUBLISH.equals(checkType)) {
+            return fetchCmsTablePublish(params);
         }
         LocalDateTime updateTime = fetchUpdateTime(checkType, params);
         return new ModuleCheckResult(updateTime, null, null, null);
@@ -123,6 +153,31 @@ public class MonitorModuleCheckService {
         return new ModuleCheckResult(record.getAlarmDate(), record.getTitle(), record.getCode(), record.getLevel());
     }
 
+    private ModuleCheckResult fetchCmsTablePublish(Map<String, String> params) {
+        Long datasourceId = parseLong(params.get("datasourceId"));
+        String timeField = params.get("timeField");
+        String titleField = params.get("titleField");
+        String scheduleType = params.getOrDefault("scheduleType", "daily");
+        String categoryId = params.get("categoryId");
+        if (datasourceId == null || !StringUtils.hasText(timeField)) {
+            return ModuleCheckResult.empty();
+        }
+        MonitorDatasourceEntity datasource = monitorDatasourceDao.selectById(datasourceId);
+        if (datasource == null || datasource.getStatus() != null && datasource.getStatus() == 0) {
+            return ModuleCheckResult.empty();
+        }
+        String table = resolveTableName(params, datasource);
+        if (!StringUtils.hasText(table)) {
+            return ModuleCheckResult.empty();
+        }
+        CmsTablePublishRecord record = cmsForecastAlarmQueryClient.fetchTablePublish(
+                datasource, table, timeField, titleField, scheduleType, categoryId);
+        if (record == null) {
+            return ModuleCheckResult.empty();
+        }
+        return new ModuleCheckResult(record.getPublishTime(), record.getTitle(), null, null);
+    }
+
     private LocalDateTime fetchUpdateTime(String checkType, Map<String, String> params) {
         return switch (checkType) {
             case ModuleCheckTypeConst.WARN_HISTORY -> nmefcApiClient.fetchWarnHistoryLatest(
@@ -141,7 +196,18 @@ public class MonitorModuleCheckService {
     /**
      * 根据预期更新时间和实际更新时间判断状态
      */
-    private Integer evaluateStatus(MonitorModuleEntity module, LocalDateTime updateTime) {
+    private Integer evaluateStatus(MonitorModuleEntity module, LocalDateTime updateTime, Map<String, String> params) {
+        if (ModuleCheckTypeConst.CMS_TABLE_PUBLISH.equals(module.getCheckType())) {
+            String scheduleType = params.getOrDefault("scheduleType", "daily");
+            if ("monthly".equals(scheduleType)) {
+                return evaluateMonthlyStatus(updateTime);
+            }
+            return evaluateDailyStatus(module, updateTime);
+        }
+        return evaluateAlarmStatus(module, updateTime);
+    }
+
+    private Integer evaluateAlarmStatus(MonitorModuleEntity module, LocalDateTime updateTime) {
         if (updateTime == null) {
             return MonitorStatusConst.ERROR;
         }
@@ -163,6 +229,80 @@ public class MonitorModuleCheckService {
             return MonitorStatusConst.WARNING;
         }
         return updateTime.toLocalDate().isBefore(LocalDate.now()) ? MonitorStatusConst.WARNING : MonitorStatusConst.NORMAL;
+    }
+
+    private Integer evaluateDailyStatus(MonitorModuleEntity module, LocalDateTime updateTime) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = LocalDate.now();
+
+        if (updateTime != null && updateTime.toLocalDate().equals(today)) {
+            return MonitorStatusConst.NORMAL;
+        }
+
+        if (!StringUtils.hasText(module.getExpectedTime())) {
+            return updateTime == null ? MonitorStatusConst.ERROR : MonitorStatusConst.WARNING;
+        }
+
+        LocalTime expected = LocalTime.parse(module.getExpectedTime(), TIME_FORMATTER);
+        LocalDateTime deadline = LocalDateTime.of(today, expected);
+        if (now.isAfter(deadline.plusHours(2))) {
+            return MonitorStatusConst.ERROR;
+        }
+        if (now.isAfter(deadline)) {
+            return MonitorStatusConst.WARNING;
+        }
+        return updateTime == null ? MonitorStatusConst.WARNING : MonitorStatusConst.WARNING;
+    }
+
+    private Integer evaluateMonthlyStatus(LocalDateTime updateTime) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = LocalDate.now();
+
+        if (updateTime != null
+                && updateTime.getYear() == today.getYear()
+                && updateTime.getMonthValue() == today.getMonthValue()) {
+            return MonitorStatusConst.NORMAL;
+        }
+
+        LocalDateTime monthStart = today.withDayOfMonth(1).atStartOfDay();
+        if (now.isAfter(monthStart.plusHours(2))) {
+            return MonitorStatusConst.ERROR;
+        }
+        if (now.isAfter(monthStart)) {
+            return MonitorStatusConst.WARNING;
+        }
+        return MonitorStatusConst.WARNING;
+    }
+
+    private String resolveEmptyRemark(Map<String, String> params) {
+        if ("monthly".equals(params.get("scheduleType"))) {
+            return "未获取到当月发布记录";
+        }
+        if ("daily".equals(params.get("scheduleType"))) {
+            return "未获取到当日发布记录";
+        }
+        return "未获取到更新时间";
+    }
+
+    /**
+     * 检查 CMS 模块关联数据源是否可用
+     */
+    private String resolveDatasourceIssue(String checkType, Map<String, String> params) {
+        if (!isCmsCheckType(checkType)) {
+            return null;
+        }
+        Long datasourceId = parseLong(params.get("datasourceId"));
+        if (datasourceId == null) {
+            return "未配置关联数据源";
+        }
+        MonitorDatasourceEntity datasource = monitorDatasourceDao.selectById(datasourceId);
+        if (datasource == null) {
+            return "关联数据源不存在（ID=" + datasourceId + "）";
+        }
+        if (datasource.getStatus() != null && datasource.getStatus() == 0) {
+            return "关联数据源已禁用：" + datasource.getDsName();
+        }
+        return null;
     }
 
     private Map<String, String> parseCheckParam(String checkParam) {
@@ -187,6 +327,16 @@ public class MonitorModuleCheckService {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /**
+     * 表名优先取数据源配置，检测参数中的 table 仅作覆盖
+     */
+    private String resolveTableName(Map<String, String> params, MonitorDatasourceEntity datasource) {
+        if (StringUtils.hasText(params.get("table"))) {
+            return params.get("table");
+        }
+        return datasource == null ? null : datasource.getTableName();
     }
 
     private record ModuleCheckResult(LocalDateTime updateTime, String alarmTitle, String alarmCode, String alarmLevel) {

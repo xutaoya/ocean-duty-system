@@ -5,6 +5,7 @@
       v-for="mod in modules"
       :key="mod.id"
       class="disaster-row"
+      :class="{ 'disaster-row--static': !isAlarmModule(mod) }"
       @click="handleRowClick(mod)"
     >
       <div
@@ -21,7 +22,7 @@
 
           <div class="row-alarm">
             <span v-if="mod.alarmTitle" class="alarm-title">{{ mod.alarmTitle }}</span>
-            <span v-else class="alarm-empty">暂无最新警报数据</span>
+            <span v-else :class="['alarm-empty', { 'alarm-empty--hint': mod.remark }]">{{ emptyLabel(mod) }}</span>
             <el-tag
               v-if="mod.alarmLevel"
               :type="rowAccent(mod).tagType"
@@ -45,7 +46,7 @@
           </span>
           <span class="meta-item">
             <span class="meta-label">周期</span>
-            每天 {{ mod.expectedTime || '-' }}
+            {{ cycleLabel(mod) }}
           </span>
         </div>
       </div>
@@ -57,7 +58,7 @@
         >
           {{ statusTheme(mod).label }}
         </span>
-        <el-icon class="row-arrow"><ArrowRight /></el-icon>
+        <el-icon v-if="isAlarmModule(mod)" class="row-arrow"><ArrowRight /></el-icon>
       </div>
     </div>
 
@@ -75,6 +76,7 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getModuleAlarmDetail } from '@/api/monitor'
 import { MONITOR_STATUS } from '@/constants/monitor'
+import { MODULE_CHECK_TYPE } from '@/constants/module'
 import { getAlarmLevelTheme, getMonitorStatusTheme } from '@/lib/alarm-theme'
 import MonitorAlarmDetailDialog from '@/components/monitor-alarm-detail-dialog.vue'
 
@@ -92,13 +94,33 @@ export default {
     const detailLoading = ref(false)
     const alarmDetail = ref(null)
 
-    const parseAlarmType = (checkParam) => {
-      if (!checkParam) return ''
+    const parseCheckParam = (checkParam) => {
+      if (!checkParam) return {}
       try {
-        return JSON.parse(checkParam).type || ''
+        return JSON.parse(checkParam)
       } catch {
-        return ''
+        return {}
       }
+    }
+
+    const isAlarmModule = (mod) => mod.checkType === MODULE_CHECK_TYPE.CMS_FORECAST_ALARM.value
+
+    const parseAlarmType = (checkParam) => parseCheckParam(checkParam).type || ''
+
+    const emptyLabel = (mod) => {
+      if (mod.remark) {
+        return mod.remark
+      }
+      return isAlarmModule(mod) ? '暂无最新警报数据' : '暂无最新发布数据'
+    }
+
+    const cycleLabel = (mod) => {
+      const scheduleType = parseCheckParam(mod.checkParam).scheduleType
+      const time = mod.expectedTime || '-'
+      if (scheduleType === 'monthly') {
+        return `每月首日 ${time}`
+      }
+      return `每天 ${time}`
     }
 
     const codeLabel = (mod) => (parseAlarmType(mod.checkParam) === 'bore' ? '海域' : '编号')
@@ -108,11 +130,20 @@ export default {
       return time.replace('T', ' ').substring(0, 16)
     }
 
-    const rowAccent = (mod) => getAlarmLevelTheme(mod.alarmLevel)
+    const rowAccent = (mod) => {
+      if (mod.alarmLevel) {
+        return getAlarmLevelTheme(mod.alarmLevel)
+      }
+      const theme = getMonitorStatusTheme(mod.status, MONITOR_STATUS)
+      return { accent: theme.color, tagType: 'info' }
+    }
 
     const statusTheme = (mod) => getMonitorStatusTheme(mod.status, MONITOR_STATUS)
 
     const handleRowClick = async (mod) => {
+      if (!isAlarmModule(mod)) {
+        return
+      }
       detailVisible.value = true
       detailLoading.value = true
       alarmDetail.value = null
@@ -131,6 +162,9 @@ export default {
       detailVisible,
       detailLoading,
       alarmDetail,
+      isAlarmModule,
+      emptyLabel,
+      cycleLabel,
       codeLabel,
       formatTime,
       rowAccent,
@@ -163,6 +197,19 @@ export default {
 
 .disaster-row:hover {
   background: #fafbfc;
+}
+
+.disaster-row--static {
+  cursor: default;
+}
+
+.disaster-row--static:hover {
+  background: #fff;
+}
+
+.disaster-row--static:hover .row-arrow {
+  color: #d9d9d9;
+  transform: none;
 }
 
 .row-accent {
@@ -221,6 +268,10 @@ export default {
 .alarm-empty {
   font-size: 14px;
   color: #bfbfbf;
+}
+
+.alarm-empty--hint {
+  color: #d48806;
 }
 
 .level-tag {

@@ -47,7 +47,7 @@ export const MODULE_CHECK_TYPE = {
     value: 'CMS_FORECAST_ALARM',
     desc: 'CMS灾害预警表',
     fields: [
-      { key: 'datasourceId', label: '数据源ID', placeholder: '如 1' },
+      { key: 'datasourceId', label: '数据源', inputType: 'datasource', placeholder: '请选择数据源' },
       {
         key: 'type',
         label: '警报类型',
@@ -59,6 +59,25 @@ export const MODULE_CHECK_TYPE = {
           { value: 'ice', label: '海冰' }
         ]
       }
+    ]
+  },
+  CMS_TABLE_PUBLISH: {
+    value: 'CMS_TABLE_PUBLISH',
+    desc: 'CMS表发布时间',
+    fields: [
+      { key: 'datasourceId', label: '数据源', inputType: 'datasource', placeholder: '请选择数据源' },
+      { key: 'timeField', label: '时间字段', placeholder: '如 create_date' },
+      { key: 'titleField', label: '标题字段', placeholder: '如 name/title' },
+      {
+        key: 'scheduleType',
+        label: '周期类型',
+        placeholder: 'daily/monthly',
+        options: [
+          { value: 'daily', label: '每日' },
+          { value: 'monthly', label: '每月' }
+        ]
+      },
+      { key: 'categoryId', label: '分类ID', placeholder: '月预报等可选，如 1190087852779372544' }
     ]
   }
 }

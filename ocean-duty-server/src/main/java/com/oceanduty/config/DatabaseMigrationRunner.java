@@ -45,6 +45,74 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         seedDefaultUsers();
         migratePlainPasswords();
         migrateDatasourcePasswords();
+        seedCmsEnvDatasources();
+        migrateEnvModuleCheckParams();
+        removeLegacyNmefcModules();
+    }
+
+    /**
+     * 删除国家海洋预报中心相关历史模块（首页已不再使用）
+     */
+    private void removeLegacyNmefcModules() {
+        int updated = jdbcTemplate.update(
+                "UPDATE monitor_module SET deleted_flag = 1 WHERE id <= 23 AND deleted_flag = 0");
+        if (updated > 0) {
+            log.info("已删除 {} 条未使用的历史模块数据", updated);
+        }
+    }
+
+    /**
+     * 从已有 CMS 数据源复制连接信息，补全环境预报相关数据表
+     */
+    private void seedCmsEnvDatasources() {
+        Integer baseCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM monitor_datasource WHERE id = 1 AND deleted_flag = 0", Integer.class);
+        if (baseCount == null || baseCount == 0) {
+            return;
+        }
+        jdbcTemplate.update(
+                "UPDATE monitor_datasource SET ds_name = ? WHERE id = 1 AND ds_name = ?",
+                "中国海洋预报网CMS-灾害预警", "中国海洋预报网CMS");
+        insertFromBase(2L, "中国海洋预报网CMS-海区预报", "cms_forecast_area_firststage");
+        insertFromBase(3L, "中国海洋预报网CMS-近岸预报", "cms_forecast_nearshoreseaarea");
+        insertFromBase(4L, "中国海洋预报网CMS-月预报", "cms_article");
+    }
+
+    private void insertFromBase(long id, String name, String tableName) {
+        int inserted = jdbcTemplate.update(
+                "INSERT INTO monitor_datasource (id, ds_name, ds_type, host, port, database_name, username, password, table_name, status, deleted_flag) "
+                        + "SELECT ?, ?, ds_type, host, port, database_name, username, password, ?, 1, 0 "
+                        + "FROM monitor_datasource WHERE id = 1 AND deleted_flag = 0 "
+                        + "AND NOT EXISTS (SELECT 1 FROM monitor_datasource t WHERE t.id = ? AND t.deleted_flag = 0)",
+                id, name, tableName, id);
+        if (inserted > 0) {
+            log.info("已补全数据源: {} ({})", name, tableName);
+        }
+    }
+
+    /**
+     * 环境预报模块改为引用独立数据源，不再在检测参数中写表名
+     */
+    private void migrateEnvModuleCheckParams() {
+        updateModuleCheckParam(28L,
+                "{\"datasourceId\":\"2\",\"timeField\":\"create_date\",\"titleField\":\"name\",\"scheduleType\":\"daily\"}");
+        updateModuleCheckParam(29L,
+                "{\"datasourceId\":\"3\",\"timeField\":\"create_date\",\"titleField\":\"code\",\"scheduleType\":\"daily\"}");
+        updateModuleCheckParam(30L,
+                "{\"datasourceId\":\"4\",\"timeField\":\"create_date\",\"titleField\":\"title\",\"scheduleType\":\"monthly\",\"categoryId\":\"1190087852779372544\"}");
+    }
+
+    private void updateModuleCheckParam(Long moduleId, String newParam) {
+        String current = jdbcTemplate.queryForObject(
+                "SELECT check_param FROM monitor_module WHERE id = ?", String.class, moduleId);
+        if (newParam.equals(current)) {
+            return;
+        }
+        int updated = jdbcTemplate.update(
+                "UPDATE monitor_module SET check_param = ? WHERE id = ?", newParam, moduleId);
+        if (updated > 0) {
+            log.info("已更新 monitor_module.{} 检测参数，关联数据源管理", moduleId);
+        }
     }
 
     /**

@@ -28,4 +28,7 @@ public final class ModuleCheckTypeConst {
 
     /** CMS 灾害预警表查询 */
     public static final String CMS_FORECAST_ALARM = "CMS_FORECAST_ALARM";
+
+    /** CMS 表发布时间查询（环境预报等） */
+    public static final String CMS_TABLE_PUBLISH = "CMS_TABLE_PUBLISH";
 }

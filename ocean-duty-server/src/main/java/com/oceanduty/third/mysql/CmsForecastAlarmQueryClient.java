@@ -1,6 +1,7 @@
 package com.oceanduty.third.mysql;
 
 import com.oceanduty.module.monitor.domain.CmsForecastAlarmRecord;
+import com.oceanduty.module.monitor.domain.CmsTablePublishRecord;
 import com.oceanduty.module.monitor.domain.MonitorDatasourceEntity;
 import com.oceanduty.util.CredentialEncryptUtil;
 import lombok.RequiredArgsConstructor;
@@ -72,6 +73,57 @@ public class CmsForecastAlarmQueryClient {
         } catch (SQLException e) {
             log.error("查询 CMS 灾害预警详情失败: dsId={}, type={}, msg={}",
                     datasource.getId(), alarmType, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 查询 CMS 表当日/当月最新发布记录
+     */
+    public CmsTablePublishRecord fetchTablePublish(MonitorDatasourceEntity datasource, String table,
+                                                   String timeField, String titleField, String scheduleType,
+                                                   String categoryId) {
+        if (datasource == null || !StringUtils.hasText(table) || !StringUtils.hasText(timeField)) {
+            return null;
+        }
+        validateIdentifier(table);
+        validateIdentifier(timeField);
+        if (StringUtils.hasText(titleField)) {
+            validateIdentifier(titleField);
+        }
+
+        String titleColumn = StringUtils.hasText(titleField) ? "`" + titleField + "`" : "''";
+        String sql;
+        if ("monthly".equals(scheduleType)) {
+            sql = "SELECT " + titleColumn + " AS title, `" + timeField + "` AS publish_time FROM `" + table + "`"
+                    + " WHERE `" + timeField + "` >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"
+                    + (StringUtils.hasText(categoryId) ? " AND category_id = ?" : "")
+                    + " ORDER BY `" + timeField + "` DESC LIMIT 1";
+        } else {
+            sql = "SELECT " + titleColumn + " AS title, `" + timeField + "` AS publish_time FROM `" + table + "`"
+                    + " WHERE `" + timeField + "` >= CURDATE() AND `" + timeField + "` < CURDATE() + INTERVAL 1 DAY"
+                    + (StringUtils.hasText(categoryId) ? " AND category_id = ?" : "")
+                    + " ORDER BY `" + timeField + "` DESC LIMIT 1";
+        }
+
+        try (Connection connection = openConnection(datasource);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            if (StringUtils.hasText(categoryId)) {
+                statement.setString(1, categoryId);
+            }
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return null;
+                }
+                Timestamp publishTime = resultSet.getTimestamp("publish_time");
+                return CmsTablePublishRecord.builder()
+                        .title(trimText(resultSet.getString("title")))
+                        .publishTime(publishTime == null ? null : publishTime.toLocalDateTime())
+                        .build();
+            }
+        } catch (SQLException e) {
+            log.error("查询 CMS 表发布记录失败: dsId={}, table={}, msg={}",
+                    datasource.getId(), table, e.getMessage());
             return null;
         }
     }

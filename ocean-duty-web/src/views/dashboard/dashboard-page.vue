@@ -14,6 +14,9 @@
     </div>
 
     <!-- 统计卡片 -->
+    <DashboardPageSkeleton v-if="loading" />
+
+    <template v-else>
     <div class="stats-row">
       <div v-for="item in statCards" :key="item.key" :class="['stat-card', `stat-card--${item.key}`]">
         <div class="stat-icon">
@@ -78,25 +81,23 @@
       </div>
     </div>
 
-    <!-- 预报服务模块 -->
+    <!-- 环境预报模块 -->
     <div class="section">
       <div class="section-header">
         <h3 class="section-title">
-          <el-icon><Sunny /></el-icon>
-          预报服务 · 最后更新时间
+          <el-icon><Cloudy /></el-icon>
+          环境预报 · 最后更新时间
         </h3>
-        <span class="section-count">{{ forecastModules.length }} 个模块</span>
+        <span class="section-count">中国海洋预报网 · {{ envForecastModules.length }} 个模块</span>
       </div>
-      <el-row v-if="forecastModules.length" :gutter="16" class="card-grid">
-        <el-col v-for="mod in forecastModules" :key="mod.id" :xs="24" :sm="12" :md="8" :lg="6" class="card-col">
-          <MonitorModuleCard :module="mod" />
-        </el-col>
-      </el-row>
+      <MonitorDisasterPanel v-if="envForecastModules.length" :modules="envForecastModules" />
       <div v-else class="empty-state empty-state--info">
         <el-icon :size="36"><InfoFilled /></el-icon>
-        <p>暂无预报服务模块数据</p>
+        <p>暂无环境预报模块数据</p>
       </div>
     </div>
+
+    </template>
   </div>
   <!-- end 监控首页 -->
 </template>
@@ -108,15 +109,16 @@ import { getDashboard, checkSites, checkModules } from '@/api/monitor'
 import { MONITOR_STATUS, MODULE_CATEGORY } from '@/constants/monitor'
 import MonitorSiteCard from '@/components/monitor-site-card.vue'
 import MonitorDisasterPanel from '@/components/monitor-disaster-panel.vue'
-import MonitorModuleCard from '@/components/monitor-module-card.vue'
+import DashboardPageSkeleton from '@/components/dashboard-page-skeleton.vue'
 
 export default {
   name: 'DashboardPage',
-  components: { MonitorSiteCard, MonitorDisasterPanel, MonitorModuleCard },
+  components: { MonitorSiteCard, MonitorDisasterPanel, DashboardPageSkeleton },
   setup() {
     const abnormalSites = ref([])
     const sites = ref([])
     const modules = ref([])
+    const loading = ref(true)
     const checking = ref(false)
 
     const stats = computed(() => {
@@ -141,18 +143,22 @@ export default {
       )
     )
 
-    const forecastModules = computed(() =>
-      modules.value.filter(m => m.moduleCategory === MODULE_CATEGORY.FORECAST_SERVICE.value)
+    const envForecastModules = computed(() =>
+      modules.value.filter(m => m.moduleCategory === MODULE_CATEGORY.ENV_FORECAST.value)
     )
 
     /**
      * 加载仪表盘数据
      */
     const loadDashboard = async () => {
-      const res = await getDashboard()
-      abnormalSites.value = res.data.abnormalSites || []
-      sites.value = res.data.sites || []
-      modules.value = res.data.modules || []
+      try {
+        const res = await getDashboard()
+        abnormalSites.value = res.data.abnormalSites || []
+        sites.value = res.data.sites || []
+        modules.value = res.data.modules || []
+      } finally {
+        loading.value = false
+      }
     }
 
     /**
@@ -178,10 +184,11 @@ export default {
       abnormalSites,
       sites,
       modules,
+      loading,
       checking,
       statCards,
       disasterModules,
-      forecastModules,
+      envForecastModules,
       handleCheck
     }
   }

@@ -70,7 +70,7 @@ public class MonitorController {
         if (moduleCheckEnabled) {
             monitorModuleCheckService.checkAllModules();
         } else {
-            monitorModuleCheckService.checkCmsForecastAlarmModules();
+            monitorModuleCheckService.checkCmsModules();
         }
         return ResponseDTO.succ("模块检测任务已执行");
     }
