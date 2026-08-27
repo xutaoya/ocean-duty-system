@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -28,12 +29,44 @@ public class MonitorQueryService {
     private final MonitorSiteDao monitorSiteDao;
     private final MonitorModuleDao monitorModuleDao;
     private final MonitorModuleCheckService monitorModuleCheckService;
+    private final MonitorDashboardCacheService monitorDashboardCacheService;
 
     /**
      * 获取监控仪表盘数据
      */
     public DashboardVO getDashboard() {
+        Optional<DashboardVO> cached = monitorDashboardCacheService.get();
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+        return loadAndCacheDashboard();
+    }
+
+    /**
+     * 重新加载并刷新仪表盘缓存
+     */
+    public DashboardVO loadAndCacheDashboard() {
         monitorModuleCheckService.checkCmsModules();
+        return refreshDashboardCache();
+    }
+
+    /**
+     * 基于当前数据库结果刷新缓存（不再重复检测）
+     */
+    public DashboardVO refreshDashboardCache() {
+        DashboardVO dashboard = buildDashboard();
+        monitorDashboardCacheService.put(dashboard);
+        return dashboard;
+    }
+
+    /**
+     * 清除仪表盘缓存
+     */
+    public void evictDashboardCache() {
+        monitorDashboardCacheService.evict();
+    }
+
+    private DashboardVO buildDashboard() {
         List<MonitorSiteVO> sites = listAllSites();
         List<MonitorSiteVO> abnormalSites = sites.stream()
                 .filter(site -> MonitorStatusConst.ERROR.equals(site.getStatus()))

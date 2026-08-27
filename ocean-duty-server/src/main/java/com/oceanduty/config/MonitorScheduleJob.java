@@ -2,6 +2,7 @@ package com.oceanduty.config;
 
 import com.oceanduty.module.monitor.MonitorCheckService;
 import com.oceanduty.module.monitor.MonitorModuleCheckService;
+import com.oceanduty.module.monitor.MonitorQueryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +19,7 @@ public class MonitorScheduleJob {
 
     private final MonitorCheckService monitorCheckService;
     private final MonitorModuleCheckService monitorModuleCheckService;
+    private final MonitorQueryService monitorQueryService;
 
     @Value("${ocean-duty.monitor.module-check-enabled:false}")
     private boolean moduleCheckEnabled;
@@ -29,6 +31,7 @@ public class MonitorScheduleJob {
     public void checkSites() {
         log.info("开始执行网站监控定时任务");
         monitorCheckService.checkAllSites();
+        monitorQueryService.evictDashboardCache();
     }
 
     /**
@@ -39,9 +42,10 @@ public class MonitorScheduleJob {
         if (moduleCheckEnabled) {
             log.info("开始执行模块监控定时任务");
             monitorModuleCheckService.checkAllModules();
-            return;
+        } else {
+            log.info("开始执行 CMS 模块检测");
+            monitorModuleCheckService.checkCmsModules();
         }
-        log.info("开始执行 CMS 灾害预警模块检测");
-        monitorModuleCheckService.checkCmsForecastAlarmModules();
+        monitorQueryService.refreshDashboardCache();
     }
 }

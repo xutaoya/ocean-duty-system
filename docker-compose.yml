@@ -11,6 +11,7 @@ services:
     environment:
       - SQLITE_PATH=/app/data/ocean-duty.db
       - REDIS_HOST=redis
+      - CACHE_ENABLED=true
     depends_on:
       - redis
     restart: unless-stopped

@@ -61,6 +61,7 @@ public class MonitorController {
     @PostMapping("/monitor/site/check")
     public ResponseDTO<String> checkSites() {
         monitorCheckService.checkAllSites();
+        monitorQueryService.evictDashboardCache();
         return ResponseDTO.succ("检测任务已执行");
     }
 
@@ -72,6 +73,7 @@ public class MonitorController {
         } else {
             monitorModuleCheckService.checkCmsModules();
         }
+        monitorQueryService.refreshDashboardCache();
         return ResponseDTO.succ("模块检测任务已执行");
     }
 }

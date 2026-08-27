@@ -41,6 +41,9 @@ springdoc:
     path: /swagger-ui.html
 
 ocean-duty:
+  cache:
+    enabled: ${CACHE_ENABLED:true}
+    dashboard-ttl-seconds: ${CACHE_DASHBOARD_TTL:60}
   monitor:
     site-timeout-ms: 10000
     module-timeout-ms: 15000
