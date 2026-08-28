@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -33,9 +34,19 @@ public class DutyLogEntity {
     private String userName;
 
     /**
+     * 值班人员 ID
+     */
+    private Long userId;
+
+    /**
      * 值班时间
      */
     private LocalDateTime dutyTime;
+
+    /**
+     * 值班日期（按天周期）
+     */
+    private LocalDate dutyDate;
 
     /**
      * 网站状态摘要
@@ -61,6 +72,56 @@ public class DutyLogEntity {
      * 恢复时间
      */
     private LocalDateTime recoverTime;
+
+    /**
+     * 日志来源 manual / snapshot
+     */
+    private String logSource;
+
+    /**
+     * 动作类型 record / update / manual
+     */
+    private String actionType;
+
+    /**
+     * 上一条日志 ID（同日链式）
+     */
+    private Long previousLogId;
+
+    /**
+     * 异常状态指纹（用于判断是否需要更新日志）
+     */
+    private String stateFingerprint;
+
+    /**
+     * 变更摘要 JSON
+     */
+    private String changeSummary;
+
+    /**
+     * 当前异常总数
+     */
+    private Integer abnormalCount;
+
+    /**
+     * 新异常数
+     */
+    private Integer newAbnormalCount;
+
+    /**
+     * 状态变化数
+     */
+    private Integer changedCount;
+
+    /**
+     * 恢复数
+     */
+    private Integer recoveredCount;
+
+    /**
+     * 监控快照 JSON
+     */
+    private String snapshotJson;
 
     /**
      * 删除标记

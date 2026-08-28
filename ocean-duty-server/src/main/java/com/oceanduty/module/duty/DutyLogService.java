@@ -4,12 +4,17 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.oceanduty.common.constant.ResponseCodeConst;
 import com.oceanduty.common.domain.PageResultVO;
+import com.oceanduty.common.domain.RequestUser;
 import com.oceanduty.common.domain.ResponseDTO;
 import com.oceanduty.common.exception.BusinessException;
+import com.oceanduty.constant.DutyLogActionTypeConst;
+import com.oceanduty.module.duty.domain.DutyLogChangeSummaryVO;
 import com.oceanduty.module.duty.domain.DutyLogDTO;
+import com.oceanduty.module.duty.domain.DutyLogDetailVO;
 import com.oceanduty.module.duty.domain.DutyLogEntity;
+import com.oceanduty.module.duty.domain.DutyLogItemEntity;
+import com.oceanduty.module.duty.domain.DutyLogItemVO;
 import com.oceanduty.module.duty.domain.DutyLogQueryDTO;
-import com.oceanduty.common.domain.RequestUser;
 import com.oceanduty.module.duty.domain.DutyLogVO;
 import com.oceanduty.util.RequestUserContext;
 import lombok.RequiredArgsConstructor;
@@ -27,10 +32,9 @@ import java.util.stream.Collectors;
 public class DutyLogService {
 
     private final DutyLogDao dutyLogDao;
+    private final DutyLogItemDao dutyLogItemDao;
+    private final DutyIncidentService dutyIncidentService;
 
-    /**
-     * 分页查询值班日志
-     */
     public ResponseDTO<PageResultVO<DutyLogVO>> queryDutyLog(DutyLogQueryDTO queryDTO) {
         LambdaQueryWrapper<DutyLogEntity> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(queryDTO.getUserName())) {
@@ -59,19 +63,56 @@ public class DutyLogService {
                 .build());
     }
 
-    /**
-     * 新增值班日志
-     */
+    public ResponseDTO<DutyLogDetailVO> getDutyLogDetail(Long id) {
+        DutyLogEntity entity = dutyLogDao.selectById(id);
+        if (entity == null) {
+            throw new BusinessException(ResponseCodeConst.NOT_FOUND);
+        }
+        List<DutyLogItemVO> items = dutyLogItemDao.selectList(new LambdaQueryWrapper<DutyLogItemEntity>()
+                        .eq(DutyLogItemEntity::getLogId, id)
+                        .orderByAsc(DutyLogItemEntity::getId))
+                .stream()
+                .map(this::toItemVO)
+                .collect(Collectors.toList());
+        DutyLogChangeSummaryVO changeSummary = dutyIncidentService.readJson(
+                entity.getChangeSummary(), DutyLogChangeSummaryVO.class);
+        return ResponseDTO.succ(DutyLogDetailVO.builder()
+                .id(entity.getId())
+                .userId(entity.getUserId())
+                .userName(entity.getUserName())
+                .dutyTime(entity.getDutyTime())
+                .dutyDate(entity.getDutyDate())
+                .logSource(entity.getLogSource())
+                .actionType(entity.getActionType())
+                .previousLogId(entity.getPreviousLogId())
+                .siteStatus(entity.getSiteStatus())
+                .moduleStatus(entity.getModuleStatus())
+                .problem(entity.getProblem())
+                .solution(entity.getSolution())
+                .recoverTime(entity.getRecoverTime())
+                .stateFingerprint(entity.getStateFingerprint())
+                .abnormalCount(entity.getAbnormalCount())
+                .newAbnormalCount(entity.getNewAbnormalCount())
+                .changedCount(entity.getChangedCount())
+                .recoveredCount(entity.getRecoveredCount())
+                .changeSummary(changeSummary)
+                .items(items)
+                .incidents(dutyIncidentService.listByLogId(id))
+                .build());
+    }
+
     public ResponseDTO<String> addDutyLog(DutyLogDTO dutyLogDTO) {
         DutyLogEntity entity = toEntity(dutyLogDTO);
         entity.setUserName(resolveUserName(dutyLogDTO.getUserName()));
+        entity.setLogSource("manual");
+        entity.setActionType(DutyLogActionTypeConst.MANUAL);
+        if (entity.getDutyTime() != null) {
+            entity.setDutyDate(entity.getDutyTime().toLocalDate());
+        }
         dutyLogDao.insert(entity);
         return ResponseDTO.succ();
     }
 
-    /**
-     * 更新值班日志
-     */
     public ResponseDTO<String> updateDutyLog(DutyLogDTO dutyLogDTO) {
         if (dutyLogDTO.getId() == null) {
             throw new BusinessException(ResponseCodeConst.ERROR_PARAM, "日志ID不能为空");
@@ -83,13 +124,13 @@ public class DutyLogService {
         DutyLogEntity entity = toEntity(dutyLogDTO);
         entity.setId(dutyLogDTO.getId());
         entity.setUserName(resolveUserName(dutyLogDTO.getUserName()));
+        if (entity.getDutyTime() != null) {
+            entity.setDutyDate(entity.getDutyTime().toLocalDate());
+        }
         dutyLogDao.updateById(entity);
         return ResponseDTO.succ();
     }
 
-    /**
-     * 删除值班日志
-     */
     public ResponseDTO<String> deleteDutyLog(Long id) {
         DutyLogEntity exist = dutyLogDao.selectById(id);
         if (exist == null) {
@@ -115,11 +156,35 @@ public class DutyLogService {
                 .id(entity.getId())
                 .userName(entity.getUserName())
                 .dutyTime(entity.getDutyTime())
+                .dutyDate(entity.getDutyDate())
                 .siteStatus(entity.getSiteStatus())
                 .moduleStatus(entity.getModuleStatus())
                 .problem(entity.getProblem())
                 .solution(entity.getSolution())
                 .recoverTime(entity.getRecoverTime())
+                .logSource(entity.getLogSource())
+                .actionType(entity.getActionType())
+                .abnormalCount(entity.getAbnormalCount())
+                .newAbnormalCount(entity.getNewAbnormalCount())
+                .recoveredCount(entity.getRecoveredCount())
+                .build();
+    }
+
+    private DutyLogItemVO toItemVO(DutyLogItemEntity entity) {
+        return DutyLogItemVO.builder()
+                .id(entity.getId())
+                .targetType(entity.getTargetType())
+                .targetId(entity.getTargetId())
+                .targetKey(entity.getTargetKey())
+                .targetName(entity.getTargetName())
+                .category(entity.getCategory())
+                .checkType(entity.getCheckType())
+                .status(entity.getStatus())
+                .previousStatus(entity.getPreviousStatus())
+                .statusLabel(entity.getStatusLabel())
+                .changeType(entity.getChangeType())
+                .stateToken(entity.getStateToken())
+                .detailJson(entity.getDetailJson())
                 .build();
     }
 

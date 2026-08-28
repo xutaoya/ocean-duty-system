@@ -57,6 +57,95 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         fixTodayPublishedModuleStatus();
         fixMonthlyPublishedModuleStatus();
         renameStormTideModule();
+        migrateDutyLogSnapshot();
+    }
+
+    private void migrateDutyLogSnapshot() {
+        Set<String> dutyLogColumns = loadTableColumns("duty_log");
+        addColumnIfMissing("duty_log", dutyLogColumns, "user_id", "INTEGER");
+        addColumnIfMissing("duty_log", dutyLogColumns, "duty_date", "DATE");
+        addColumnIfMissing("duty_log", dutyLogColumns, "log_source", "VARCHAR(20) DEFAULT 'manual'");
+        addColumnIfMissing("duty_log", dutyLogColumns, "action_type", "VARCHAR(20)");
+        addColumnIfMissing("duty_log", dutyLogColumns, "previous_log_id", "INTEGER");
+        addColumnIfMissing("duty_log", dutyLogColumns, "state_fingerprint", "VARCHAR(500)");
+        addColumnIfMissing("duty_log", dutyLogColumns, "change_summary", "TEXT");
+        addColumnIfMissing("duty_log", dutyLogColumns, "abnormal_count", "INTEGER DEFAULT 0");
+        addColumnIfMissing("duty_log", dutyLogColumns, "new_abnormal_count", "INTEGER DEFAULT 0");
+        addColumnIfMissing("duty_log", dutyLogColumns, "changed_count", "INTEGER DEFAULT 0");
+        addColumnIfMissing("duty_log", dutyLogColumns, "recovered_count", "INTEGER DEFAULT 0");
+        addColumnIfMissing("duty_log", dutyLogColumns, "snapshot_json", "TEXT");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_duty_log_duty_date ON duty_log(duty_date)");
+
+        ensureDutyLogItemTable();
+        ensureDutyIncidentTable();
+    }
+
+    private void ensureDutyLogItemTable() {
+        Integer tableCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'duty_log_item'", Integer.class);
+        if (tableCount == null || tableCount == 0) {
+            jdbcTemplate.execute("""
+                    CREATE TABLE IF NOT EXISTS duty_log_item (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        log_id          INTEGER      NOT NULL,
+                        target_type     VARCHAR(20)  NOT NULL,
+                        target_id       INTEGER      NOT NULL,
+                        target_key      VARCHAR(100) NOT NULL,
+                        target_name     VARCHAR(200) NOT NULL,
+                        category        VARCHAR(50),
+                        check_type      VARCHAR(50),
+                        status          TINYINT      NOT NULL,
+                        status_label    VARCHAR(20),
+                        change_type     VARCHAR(20),
+                        previous_status TINYINT,
+                        state_token     VARCHAR(120),
+                        detail_json     TEXT,
+                        create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """);
+            log.info("已创建 duty_log_item 表");
+        }
+        Set<String> itemColumns = loadTableColumns("duty_log_item");
+        addColumnIfMissing("duty_log_item", itemColumns, "change_type", "VARCHAR(20)");
+        addColumnIfMissing("duty_log_item", itemColumns, "previous_status", "TINYINT");
+        addColumnIfMissing("duty_log_item", itemColumns, "state_token", "VARCHAR(120)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_duty_log_item_log_id ON duty_log_item(log_id)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_duty_log_item_target ON duty_log_item(target_type, target_id)");
+    }
+
+    private void ensureDutyIncidentTable() {
+        Integer tableCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'duty_incident'", Integer.class);
+        if (tableCount != null && tableCount > 0) {
+            return;
+        }
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS duty_incident (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    target_type     VARCHAR(20)  NOT NULL,
+                    target_id       INTEGER      NOT NULL,
+                    target_key      VARCHAR(100) NOT NULL,
+                    target_name     VARCHAR(200) NOT NULL,
+                    category        VARCHAR(50),
+                    check_type      VARCHAR(50),
+                    duty_date       DATE         NOT NULL,
+                    incident_status VARCHAR(20)  NOT NULL,
+                    first_status    TINYINT      NOT NULL,
+                    last_status     TINYINT,
+                    first_log_id    INTEGER      NOT NULL,
+                    last_log_id     INTEGER,
+                    recover_log_id  INTEGER,
+                    first_seen_time DATETIME     NOT NULL,
+                    last_seen_time  DATETIME,
+                    recovered_time  DATETIME,
+                    create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_duty_incident_duty_date ON duty_incident(duty_date)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_duty_incident_target ON duty_incident(target_key, incident_status)");
+        log.info("已创建 duty_incident 表");
     }
 
     /**

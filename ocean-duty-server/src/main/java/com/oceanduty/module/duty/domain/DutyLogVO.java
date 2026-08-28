@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -55,4 +56,34 @@ public class DutyLogVO {
      * 恢复时间
      */
     private LocalDateTime recoverTime;
+
+    /**
+     * 日志来源
+     */
+    private String logSource;
+
+    /**
+     * 动作类型 record / update / manual
+     */
+    private String actionType;
+
+    /**
+     * 值班日期
+     */
+    private LocalDate dutyDate;
+
+    /**
+     * 异常总数
+     */
+    private Integer abnormalCount;
+
+    /**
+     * 新异常数
+     */
+    private Integer newAbnormalCount;
+
+    /**
+     * 恢复数
+     */
+    private Integer recoveredCount;
 }

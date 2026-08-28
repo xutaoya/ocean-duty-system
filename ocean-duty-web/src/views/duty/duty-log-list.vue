@@ -99,6 +99,12 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="类型" width="90" align="center">
+          <template #default="{ row }">
+            <span class="type-badge">{{ actionTypeLabel(row) }}</span>
+          </template>
+        </el-table-column>
+
         <el-table-column label="运行状态" min-width="220">
           <template #default="{ row }">
             <div class="status-cell">
@@ -119,7 +125,7 @@
         <el-table-column label="异常情况" width="100" align="center">
           <template #default="{ row }">
             <span :class="['issue-badge', hasProblem(row) ? 'issue-badge--yes' : 'issue-badge--no']">
-              {{ hasProblem(row) ? '有异常' : '正常' }}
+              {{ issueLabel(row) }}
             </span>
           </template>
         </el-table-column>
@@ -309,7 +315,28 @@ export default {
       dutyTime: [{ required: true, message: '请选择值班时间', trigger: 'change' }]
     }
 
-    const hasProblem = (row) => !!(row.problem && row.problem.trim())
+    const hasProblem = (row) => {
+      if (row.abnormalCount != null) {
+        return row.abnormalCount > 0
+      }
+      return !!(row.problem && row.problem.trim())
+    }
+
+    const issueLabel = (row) => {
+      if (row.abnormalCount != null) {
+        return row.abnormalCount > 0 ? `${row.abnormalCount}项异常` : '正常'
+      }
+      return hasProblem(row) ? '有异常' : '正常'
+    }
+
+    const actionTypeLabel = (row) => {
+      const map = {
+        record: '自动记录',
+        update: '自动更新',
+        manual: '手工填写'
+      }
+      return map[row.actionType] || (row.logSource === 'snapshot' ? '自动记录' : '手工填写')
+    }
 
     const userInitial = (name) => (name || '?').charAt(0)
 
@@ -429,6 +456,8 @@ export default {
       issueCount,
       recoveredCount,
       hasProblem,
+      issueLabel,
+      actionTypeLabel,
       userInitial,
       formatTime,
       handleQuery,
@@ -640,6 +669,15 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #595959;
+  background: #f5f5f5;
 }
 
 .issue-badge {

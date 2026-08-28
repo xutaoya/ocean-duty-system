@@ -4,6 +4,9 @@ import com.oceanduty.common.domain.PageResultVO;
 import com.oceanduty.common.domain.ResponseDTO;
 import com.oceanduty.module.duty.domain.DutyLogDTO;
 import com.oceanduty.module.duty.domain.DutyLogQueryDTO;
+import com.oceanduty.module.duty.domain.DutyLogDetailVO;
+import com.oceanduty.module.duty.domain.DutyLogRecordResultVO;
+import com.oceanduty.module.duty.domain.DutyLogSnapshotStatusVO;
 import com.oceanduty.module.duty.domain.DutyLogVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +27,25 @@ import org.springframework.web.bind.annotation.RestController;
 public class DutyLogController {
 
     private final DutyLogService dutyLogService;
+    private final DutyLogSnapshotService dutyLogSnapshotService;
+
+    @Operation(summary = "仪表盘记录日志按钮状态 @author ocean-duty")
+    @GetMapping("/duty/log/snapshot-status")
+    public ResponseDTO<DutyLogSnapshotStatusVO> getSnapshotStatus() {
+        return dutyLogSnapshotService.getSnapshotStatus();
+    }
+
+    @Operation(summary = "记录当前监控异常快照 @author ocean-duty")
+    @PostMapping("/duty/log/record-snapshot")
+    public ResponseDTO<DutyLogRecordResultVO> recordSnapshot() {
+        return dutyLogSnapshotService.recordSnapshot();
+    }
+
+    @Operation(summary = "值班日志详情 @author ocean-duty")
+    @GetMapping("/duty/log/detail/{id}")
+    public ResponseDTO<DutyLogDetailVO> getDutyLogDetail(@PathVariable Long id) {
+        return dutyLogService.getDutyLogDetail(id);
+    }
 
     @Operation(summary = "分页查询值班日志 @author ocean-duty")
     @PostMapping("/duty/log/query")

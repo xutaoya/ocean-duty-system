@@ -7,10 +7,23 @@
         <h1 class="page-title">监控概览</h1>
         <p class="page-desc">实时掌握网站与模块运行状态</p>
       </div>
-      <el-button type="primary" :loading="checking" class="check-btn" @click="handleCheck">
-        <el-icon><Refresh /></el-icon>
-        立即检测
-      </el-button>
+      <div class="page-header-actions">
+        <el-button
+          :class="['log-btn', logButtonClass]"
+          :type="logButtonType"
+          :plain="logSnapshotStatus?.action === 'done'"
+          :disabled="!logSnapshotStatus?.clickable"
+          :loading="logging"
+          @click="handleRecordLog"
+        >
+          <el-icon><Document /></el-icon>
+          {{ logSnapshotStatus?.buttonLabel || '记录日志' }}
+        </el-button>
+        <el-button type="primary" :loading="checking" class="check-btn" @click="handleCheck">
+          <el-icon><Refresh /></el-icon>
+          立即检测
+        </el-button>
+      </div>
     </div>
 
     <!-- 统计卡片 -->
@@ -122,6 +135,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getDashboard, checkDashboard } from '@/api/monitor'
+import { getDutyLogSnapshotStatus, recordDutyLogSnapshot } from '@/api/duty'
 import { MONITOR_STATUS, MODULE_CATEGORY } from '@/constants/monitor'
 import MonitorSiteCard from '@/components/monitor-site-card.vue'
 import MonitorDisasterPanel from '@/components/monitor-disaster-panel.vue'
@@ -136,6 +150,55 @@ export default {
     const modules = ref([])
     const loading = ref(true)
     const checking = ref(false)
+    const logging = ref(false)
+    const logSnapshotStatus = ref(null)
+
+    const logButtonType = computed(() => {
+      if (!logSnapshotStatus.value) {
+        return 'success'
+      }
+      return logSnapshotStatus.value.action === 'done' ? 'info' : 'success'
+    })
+
+    const logButtonClass = computed(() => {
+      if (!logSnapshotStatus.value) {
+        return 'log-btn--active'
+      }
+      return logSnapshotStatus.value.action === 'done' ? 'log-btn--done' : 'log-btn--active'
+    })
+
+    const loadLogSnapshotStatus = async () => {
+      try {
+        const res = await getDutyLogSnapshotStatus()
+        logSnapshotStatus.value = res.data
+      } catch {
+        logSnapshotStatus.value = {
+          action: 'record',
+          buttonLabel: '记录日志',
+          clickable: true
+        }
+      }
+    }
+
+    const handleRecordLog = async () => {
+      if (!logSnapshotStatus.value?.clickable) {
+        return
+      }
+      logging.value = true
+      try {
+        const res = await recordDutyLogSnapshot()
+        const { abnormalSiteCount = 0, abnormalModuleCount = 0 } = res.data || {}
+        const total = abnormalSiteCount + abnormalModuleCount
+        ElMessage.success(total > 0
+          ? `已记录 ${total} 项异常监控状态`
+          : '已记录当前监控状态（全部正常）')
+        await loadLogSnapshotStatus()
+      } catch (error) {
+        ElMessage.error(error.message || '记录日志失败')
+      } finally {
+        logging.value = false
+      }
+    }
 
     const stats = computed(() => {
       const total = sites.value.length
@@ -179,6 +242,7 @@ export default {
       } finally {
         loading.value = false
       }
+      await loadLogSnapshotStatus()
     }
 
     /**
@@ -192,6 +256,7 @@ export default {
         sites.value = res.data.sites || []
         modules.value = res.data.modules || []
         ElMessage.success('检测完成')
+        await loadLogSnapshotStatus()
       } finally {
         checking.value = false
       }
@@ -207,6 +272,11 @@ export default {
       modules,
       loading,
       checking,
+      logging,
+      logSnapshotStatus,
+      logButtonType,
+      logButtonClass,
+      handleRecordLog,
       statCards,
       disasterModules,
       envForecastModules,
@@ -242,6 +312,35 @@ export default {
 .page-desc {
   font-size: 14px;
   color: #8c8c8c;
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.log-btn {
+  border-radius: 8px;
+  padding: 10px 20px;
+}
+
+.log-btn--active {
+  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+  border: none;
+  color: #fff;
+}
+
+.log-btn--active:hover,
+.log-btn--active:focus {
+  background: linear-gradient(135deg, #73d13d 0%, #52c41a 100%);
+  color: #fff;
+}
+
+.log-btn--done {
+  color: #8c8c8c;
+  border-color: #d9d9d9;
+  background: #f5f5f5;
 }
 
 .check-btn {
@@ -435,6 +534,11 @@ export default {
   .page-header {
     flex-direction: column;
     gap: 16px;
+  }
+
+  .page-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .page-title {
