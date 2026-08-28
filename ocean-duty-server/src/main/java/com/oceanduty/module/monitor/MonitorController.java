@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.oceanduty.module.monitor.domain.CmsForecastAlarmDetailVO;
+import com.oceanduty.module.monitor.domain.SmartGridDetailVO;
 
 import java.util.List;
 
@@ -29,6 +30,7 @@ public class MonitorController {
     private final MonitorCheckService monitorCheckService;
     private final MonitorModuleCheckService monitorModuleCheckService;
     private final MonitorModuleAlarmService monitorModuleAlarmService;
+    private final SmartGridDetailService smartGridDetailService;
 
     @Value("${ocean-duty.monitor.module-check-enabled:false}")
     private boolean moduleCheckEnabled;
@@ -51,10 +53,22 @@ public class MonitorController {
         return ResponseDTO.succ(monitorQueryService.listAllModules());
     }
 
+    @Operation(summary = "查询智能网格模块起报与 FTP 详情 @author ocean-duty")
+    @GetMapping("/monitor/module/smart-grid/{id}")
+    public ResponseDTO<SmartGridDetailVO> getSmartGridDetail(@PathVariable Long id) {
+        return ResponseDTO.succ(smartGridDetailService.getDetailByModuleId(id));
+    }
+
     @Operation(summary = "查询模块最新 CMS 警报详情 @author ocean-duty")
     @GetMapping("/monitor/module/alarm/{id}")
     public ResponseDTO<CmsForecastAlarmDetailVO> getModuleAlarmDetail(@PathVariable Long id) {
         return monitorModuleAlarmService.getAlarmDetail(id);
+    }
+
+    @Operation(summary = "手动触发全部检测并返回仪表盘 @author ocean-duty")
+    @PostMapping("/monitor/dashboard/check")
+    public ResponseDTO<DashboardVO> checkDashboard() {
+        return ResponseDTO.succ(monitorQueryService.runAllChecksAndRefreshDashboard());
     }
 
     @Operation(summary = "手动触发网站检测 @author ocean-duty")

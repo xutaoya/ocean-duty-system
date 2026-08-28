@@ -20,8 +20,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,6 +44,7 @@ public class MonitorModuleCheckService {
     private final MonitorDatasourceDao monitorDatasourceDao;
     private final NmefcApiClient nmefcApiClient;
     private final CmsForecastAlarmQueryClient cmsForecastAlarmQueryClient;
+    private final ExecutorService monitorCheckExecutor;
 
     @Value("${ocean-duty.monitor.module-check-enabled:false}")
     private boolean moduleCheckEnabled;
@@ -50,11 +54,9 @@ public class MonitorModuleCheckService {
      */
     public void checkAllModules() {
         List<MonitorModuleEntity> modules = monitorModuleDao.selectList(null);
-        for (MonitorModuleEntity module : modules) {
-            if (shouldCheckModule(module)) {
-                checkModule(module);
-            }
-        }
+        runParallelChecks(modules.stream()
+                .filter(this::shouldCheckModule)
+                .toList());
     }
 
     /**
@@ -62,11 +64,39 @@ public class MonitorModuleCheckService {
      */
     public void checkCmsModules() {
         List<MonitorModuleEntity> modules = monitorModuleDao.selectList(null);
+        runParallelChecks(modules.stream()
+                .filter(module -> isCmsCheckType(module.getCheckType()))
+                .toList());
+    }
+
+    private void runParallelChecks(List<MonitorModuleEntity> modules) {
+        if (modules.isEmpty()) {
+            return;
+        }
+        Map<Long, MonitorDatasourceEntity> datasourceMap = loadDatasourceMap(modules);
+        CompletableFuture<?>[] futures = modules.stream()
+                .map(module -> CompletableFuture.runAsync(
+                        () -> checkModule(module, datasourceMap), monitorCheckExecutor))
+                .toArray(CompletableFuture[]::new);
+        CompletableFuture.allOf(futures).join();
+    }
+
+    private Map<Long, MonitorDatasourceEntity> loadDatasourceMap(List<MonitorModuleEntity> modules) {
+        Map<Long, MonitorDatasourceEntity> datasourceMap = new HashMap<>();
         for (MonitorModuleEntity module : modules) {
-            if (isCmsCheckType(module.getCheckType())) {
-                checkModule(module);
+            if (!isCmsCheckType(module.getCheckType())) {
+                continue;
+            }
+            Long datasourceId = parseLong(parseCheckParam(module.getCheckParam()).get("datasourceId"));
+            if (datasourceId == null || datasourceMap.containsKey(datasourceId)) {
+                continue;
+            }
+            MonitorDatasourceEntity datasource = monitorDatasourceDao.selectById(datasourceId);
+            if (datasource != null) {
+                datasourceMap.put(datasourceId, datasource);
             }
         }
+        return datasourceMap;
     }
 
     /**
@@ -80,8 +110,12 @@ public class MonitorModuleCheckService {
      * 检测单个模块
      */
     public void checkModule(MonitorModuleEntity module) {
+        checkModule(module, Map.of());
+    }
+
+    private void checkModule(MonitorModuleEntity module, Map<Long, MonitorDatasourceEntity> datasourceMap) {
         Map<String, String> params = parseCheckParam(module.getCheckParam());
-        String datasourceIssue = resolveDatasourceIssue(module.getCheckType(), params);
+        String datasourceIssue = resolveDatasourceIssue(module.getCheckType(), params, datasourceMap);
         if (datasourceIssue != null) {
             module.setDataUpdateTime(null);
             module.setAlarmTitle(null);
@@ -95,7 +129,7 @@ public class MonitorModuleCheckService {
             return;
         }
 
-        ModuleCheckResult result = fetchCheckResult(module.getCheckType(), params);
+        ModuleCheckResult result = fetchCheckResult(module.getCheckType(), params, datasourceMap);
         module.setDataUpdateTime(result.updateTime());
         module.setAlarmTitle(result.alarmTitle());
         module.setAlarmCode(result.alarmCode());
@@ -126,30 +160,32 @@ public class MonitorModuleCheckService {
                 || ModuleCheckTypeConst.CMS_GRID_UPDATE.equals(checkType);
     }
 
-    private ModuleCheckResult fetchCheckResult(String checkType, Map<String, String> params) {
+    private ModuleCheckResult fetchCheckResult(String checkType, Map<String, String> params,
+                                             Map<Long, MonitorDatasourceEntity> datasourceMap) {
         if (!StringUtils.hasText(checkType)) {
             return ModuleCheckResult.empty();
         }
         if (ModuleCheckTypeConst.CMS_FORECAST_ALARM.equals(checkType)) {
-            return fetchCmsForecastAlarm(params);
+            return fetchCmsForecastAlarm(params, datasourceMap);
         }
         if (ModuleCheckTypeConst.CMS_TABLE_PUBLISH.equals(checkType)) {
-            return fetchCmsTablePublish(params);
+            return fetchCmsTablePublish(params, datasourceMap);
         }
         if (ModuleCheckTypeConst.CMS_GRID_UPDATE.equals(checkType)) {
-            return fetchCmsGridUpdate(params);
+            return fetchCmsGridUpdate(params, datasourceMap);
         }
         LocalDateTime updateTime = fetchUpdateTime(checkType, params);
         return new ModuleCheckResult(updateTime, null, null, null);
     }
 
-    private ModuleCheckResult fetchCmsForecastAlarm(Map<String, String> params) {
+    private ModuleCheckResult fetchCmsForecastAlarm(Map<String, String> params,
+                                                    Map<Long, MonitorDatasourceEntity> datasourceMap) {
         Long datasourceId = parseLong(params.get("datasourceId"));
         String alarmType = params.get("type");
         if (datasourceId == null || !StringUtils.hasText(alarmType)) {
             return ModuleCheckResult.empty();
         }
-        MonitorDatasourceEntity datasource = monitorDatasourceDao.selectById(datasourceId);
+        MonitorDatasourceEntity datasource = resolveDatasource(datasourceId, datasourceMap);
         if (datasource == null || datasource.getStatus() != null && datasource.getStatus() == 0) {
             return ModuleCheckResult.empty();
         }
@@ -160,7 +196,8 @@ public class MonitorModuleCheckService {
         return new ModuleCheckResult(record.getAlarmDate(), record.getTitle(), record.getCode(), record.getLevel());
     }
 
-    private ModuleCheckResult fetchCmsTablePublish(Map<String, String> params) {
+    private ModuleCheckResult fetchCmsTablePublish(Map<String, String> params,
+                                                   Map<Long, MonitorDatasourceEntity> datasourceMap) {
         Long datasourceId = parseLong(params.get("datasourceId"));
         String timeField = params.get("timeField");
         String titleField = params.get("titleField");
@@ -169,7 +206,7 @@ public class MonitorModuleCheckService {
         if (datasourceId == null || !StringUtils.hasText(timeField)) {
             return ModuleCheckResult.empty();
         }
-        MonitorDatasourceEntity datasource = monitorDatasourceDao.selectById(datasourceId);
+        MonitorDatasourceEntity datasource = resolveDatasource(datasourceId, datasourceMap);
         if (datasource == null || datasource.getStatus() != null && datasource.getStatus() == 0) {
             return ModuleCheckResult.empty();
         }
@@ -185,13 +222,14 @@ public class MonitorModuleCheckService {
         return new ModuleCheckResult(record.getPublishTime(), record.getTitle(), null, null);
     }
 
-    private ModuleCheckResult fetchCmsGridUpdate(Map<String, String> params) {
+    private ModuleCheckResult fetchCmsGridUpdate(Map<String, String> params,
+                                               Map<Long, MonitorDatasourceEntity> datasourceMap) {
         Long datasourceId = parseLong(params.get("datasourceId"));
         String timeField = params.getOrDefault("timeField", "update_date");
         if (datasourceId == null) {
             return ModuleCheckResult.empty();
         }
-        MonitorDatasourceEntity datasource = monitorDatasourceDao.selectById(datasourceId);
+        MonitorDatasourceEntity datasource = resolveDatasource(datasourceId, datasourceMap);
         if (datasource == null || datasource.getStatus() != null && datasource.getStatus() == 0) {
             return ModuleCheckResult.empty();
         }
@@ -343,7 +381,17 @@ public class MonitorModuleCheckService {
     /**
      * 检查 CMS 模块关联数据源是否可用
      */
-    private String resolveDatasourceIssue(String checkType, Map<String, String> params) {
+    private MonitorDatasourceEntity resolveDatasource(Long datasourceId,
+                                                      Map<Long, MonitorDatasourceEntity> datasourceMap) {
+        MonitorDatasourceEntity cached = datasourceMap.get(datasourceId);
+        if (cached != null) {
+            return cached;
+        }
+        return monitorDatasourceDao.selectById(datasourceId);
+    }
+
+    private String resolveDatasourceIssue(String checkType, Map<String, String> params,
+                                          Map<Long, MonitorDatasourceEntity> datasourceMap) {
         if (!isCmsCheckType(checkType)) {
             return null;
         }
@@ -351,7 +399,7 @@ public class MonitorModuleCheckService {
         if (datasourceId == null) {
             return "未配置关联数据源";
         }
-        MonitorDatasourceEntity datasource = monitorDatasourceDao.selectById(datasourceId);
+        MonitorDatasourceEntity datasource = resolveDatasource(datasourceId, datasourceMap);
         if (datasource == null) {
             return "关联数据源不存在（ID=" + datasourceId + "）";
         }

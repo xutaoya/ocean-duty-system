@@ -4,18 +4,21 @@ import com.oceanduty.module.monitor.domain.CmsForecastAlarmRecord;
 import com.oceanduty.module.monitor.domain.CmsTablePublishRecord;
 import com.oceanduty.module.monitor.domain.MonitorDatasourceEntity;
 import com.oceanduty.util.CredentialEncryptUtil;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * CMS 灾害预警表查询客户端
@@ -25,13 +28,15 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class CmsForecastAlarmQueryClient {
 
-    private static final int CONNECT_TIMEOUT_SECONDS = 10;
+    private static final int CONNECT_TIMEOUT_SECONDS = 5;
+    private static final int POOL_SIZE = 4;
 
     private static final String DETAIL_COLUMNS = """
             title, code, type, alarm_date, level, image, description, defense_guide, standard, content
             """;
 
     private final CredentialEncryptUtil credentialEncryptUtil;
+    private final ConcurrentHashMap<Long, HikariDataSource> dataSourcePools = new ConcurrentHashMap<>();
 
     /**
      * 查询指定类型的最新警报摘要
@@ -150,6 +155,63 @@ public class CmsForecastAlarmQueryClient {
     }
 
     /**
+     * 查询 PG 表最新 version 字段
+     */
+    public String fetchLatestVersion(MonitorDatasourceEntity datasource, String table, String versionField) {
+        if (datasource == null || !StringUtils.hasText(table) || !StringUtils.hasText(versionField)) {
+            return null;
+        }
+        validateIdentifier(table);
+        validateIdentifier(versionField);
+
+        String timeField = "update_date";
+        validateIdentifier(timeField);
+        String sql = "SELECT " + quoteIdentifier(datasource.getDsType(), versionField) + " AS version_value"
+                + " FROM " + quoteIdentifier(datasource.getDsType(), table)
+                + " ORDER BY " + quoteIdentifier(datasource.getDsType(), timeField) + " DESC LIMIT 1";
+
+        try (Connection connection = openConnection(datasource);
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+            if (!resultSet.next()) {
+                return null;
+            }
+            return trimText(resultSet.getString("version_value"));
+        } catch (SQLException e) {
+            log.error("查询 PG version 失败: dsId={}, table={}, msg={}",
+                    datasource.getId(), table, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 根据 local_version 查询智能网格起报时间
+     */
+    public LocalDateTime fetchReportDate(MonitorDatasourceEntity datasource, String controllerTable, String localVersion) {
+        if (datasource == null || !StringUtils.hasText(controllerTable) || !StringUtils.hasText(localVersion)) {
+            return null;
+        }
+        validateIdentifier(controllerTable);
+
+        String sql = "SELECT report_date FROM `" + controllerTable + "` WHERE local_version = ? LIMIT 1";
+        try (Connection connection = openConnection(datasource);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, localVersion);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return null;
+                }
+                Timestamp reportDate = resultSet.getTimestamp("report_date");
+                return reportDate == null ? null : reportDate.toLocalDateTime();
+            }
+        } catch (SQLException e) {
+            log.error("查询起报时间失败: dsId={}, version={}, msg={}",
+                    datasource.getId(), localVersion, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * 测试数据源连接
      */
     public boolean testConnection(MonitorDatasourceEntity datasource) {
@@ -178,24 +240,45 @@ public class CmsForecastAlarmQueryClient {
     }
 
     private Connection openConnection(MonitorDatasourceEntity datasource) throws SQLException {
+        HikariDataSource pool = dataSourcePools.computeIfAbsent(datasource.getId(), id -> createPool(datasource));
+        return pool.getConnection();
+    }
+
+    @PreDestroy
+    public void shutdownPools() {
+        dataSourcePools.values().forEach(HikariDataSource::close);
+        dataSourcePools.clear();
+    }
+
+    private HikariDataSource createPool(MonitorDatasourceEntity datasource) {
+        HikariConfig config = new HikariConfig();
+        config.setPoolName("cms-ds-" + datasource.getId());
+        config.setJdbcUrl(buildJdbcUrl(datasource));
+        config.setUsername(datasource.getUsername());
+        config.setPassword(credentialEncryptUtil.decrypt(datasource.getPassword()));
+        config.setMaximumPoolSize(POOL_SIZE);
+        config.setMinimumIdle(0);
+        config.setConnectionTimeout(CONNECT_TIMEOUT_SECONDS * 1000L);
+        config.setIdleTimeout(60_000L);
+        config.setMaxLifetime(300_000L);
+        return new HikariDataSource(config);
+    }
+
+    private String buildJdbcUrl(MonitorDatasourceEntity datasource) {
         if (isPostgresql(datasource.getDsType())) {
-            String url = String.format(
+            return String.format(
                     "jdbc:postgresql://%s:%d/%s?connectTimeout=%d",
                     datasource.getHost(),
                     datasource.getPort() == null ? 5432 : datasource.getPort(),
                     datasource.getDatabaseName(),
                     CONNECT_TIMEOUT_SECONDS);
-            return DriverManager.getConnection(url, datasource.getUsername(),
-                    credentialEncryptUtil.decrypt(datasource.getPassword()));
         }
-        String url = String.format(
+        return String.format(
                 "jdbc:mysql://%s:%d/%s?useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=%d&serverTimezone=Asia/Shanghai",
                 datasource.getHost(),
                 datasource.getPort() == null ? 3306 : datasource.getPort(),
                 datasource.getDatabaseName(),
                 CONNECT_TIMEOUT_SECONDS * 1000);
-        return DriverManager.getConnection(url, datasource.getUsername(),
-                credentialEncryptUtil.decrypt(datasource.getPassword()));
     }
 
     private boolean isPostgresql(String dsType) {

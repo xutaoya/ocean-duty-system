@@ -49,6 +49,18 @@ ocean-duty:
     module-timeout-ms: 15000
     module-check-enabled: false
     nmefc-api-base: https://www.nmefc.cn/api
+    grid-ftp:
+      enabled: ${GRID_FTP_ENABLED:true}
+      host: ${GRID_FTP_HOST:128.5.10.65}
+      port: ${GRID_FTP_PORT:21}
+      username: ${GRID_FTP_USERNAME:ag_duty_watcher}
+      password: ${GRID_FTP_PASSWORD:}
+      mount-base: ${GRID_FTP_MOUNT_BASE:/Volumes/128.5.10.65}
+      connect-timeout-ms: ${GRID_FTP_CONNECT_TIMEOUT_MS:10000}
+      data-timeout-ms: ${GRID_FTP_DATA_TIMEOUT_MS:30000}
+    grid-version:
+      mysql-datasource-id: ${GRID_VERSION_MYSQL_DS_ID:1}
+      controller-table: pro_version_controller
   jwt:
     secret: ${JWT_SECRET:ocean-duty-default-secret-change-in-production}
     expire-hours: 24

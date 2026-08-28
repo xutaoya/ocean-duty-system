@@ -22,6 +22,13 @@ export const listModules = () => {
 }
 
 /**
+ * 手动触发全部检测并返回仪表盘
+ */
+export const checkDashboard = () => {
+  return postAxios('/monitor/dashboard/check')
+}
+
+/**
  * 手动触发网站检测
  */
 export const checkSites = () => {
@@ -33,6 +40,10 @@ export const checkSites = () => {
  */
 export const checkModules = () => {
   return postAxios('/monitor/module/check')
+}
+
+export const getSmartGridDetail = (id) => {
+  return getAxios(`/monitor/module/smart-grid/${id}`)
 }
 
 /**

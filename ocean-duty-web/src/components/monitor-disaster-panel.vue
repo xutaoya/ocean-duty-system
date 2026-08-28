@@ -5,7 +5,10 @@
       v-for="mod in modules"
       :key="mod.id"
       class="disaster-row"
-      :class="{ 'disaster-row--static': !isAlarmModule(mod) }"
+      :class="{
+        'disaster-row--static': !isAlarmModule(mod) && !isGridDetailRow(mod),
+        'disaster-row--grid': isGridDetailRow(mod)
+      }"
       @click="handleRowClick(mod)"
     >
       <div
@@ -21,7 +24,13 @@
           </div>
 
           <div class="row-alarm">
-            <span v-if="displayTitle(mod)" class="alarm-title">{{ displayTitleText(mod) }}</span>
+            <template v-if="displayTitle(mod) && isGridModule(mod)">
+              <div class="grid-update-headline">
+                <span class="grid-update-label">更新时间</span>
+                <time class="grid-update-time">{{ formatTime(mod.updateTime) }}</time>
+              </div>
+            </template>
+            <span v-else-if="displayTitle(mod)" class="alarm-title">{{ displayTitleText(mod) }}</span>
             <span v-else :class="['alarm-empty', { 'alarm-empty--hint': mod.remark && !isContentCurrent(mod) }]">{{ emptyLabel(mod) }}</span>
             <el-tag
               v-if="mod.alarmLevel"
@@ -32,6 +41,48 @@
             >
               {{ mod.alarmLevel }}
             </el-tag>
+          </div>
+
+          <div
+            v-if="isGridDetailRow(mod)"
+            class="row-grid-detail"
+            @click.stop="handleGridDetailClick(mod)"
+          >
+            <template v-if="isGridDetailLoading(mod.id)">
+              <div class="grid-detail-loading">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                <span>加载中</span>
+              </div>
+            </template>
+            <template v-else-if="getGridDetail(mod.id)">
+              <div class="grid-detail-board">
+                <div
+                  v-for="group in getGridDetailGroups(mod)"
+                  :key="group.key"
+                  class="grid-detail-group"
+                >
+                  <span class="grid-group-tag">{{ group.label }}</span>
+                  <div class="grid-metric-list">
+                    <div
+                      v-for="field in group.fields"
+                      :key="field.key"
+                      class="grid-metric"
+                    >
+                      <span class="grid-metric-label">{{ field.label }}</span>
+                      <time class="grid-metric-value">{{ formatTime(getGridDetail(mod.id)[field.key]) }}</time>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p v-if="getGridDetail(mod.id).remark" class="grid-detail-remark">
+                <el-icon><WarningFilled /></el-icon>
+                {{ getGridDetail(mod.id).remark }}
+              </p>
+            </template>
+            <div v-else class="grid-detail-empty">
+              <el-icon><Clock /></el-icon>
+              <span class="grid-detail-empty-text">{{ getGridDetailEmptyText(mod) }}</span>
+            </div>
           </div>
         </div>
 
@@ -72,9 +123,9 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getModuleAlarmDetail } from '@/api/monitor'
+import { getModuleAlarmDetail, getSmartGridDetail } from '@/api/monitor'
 import { MONITOR_STATUS } from '@/constants/monitor'
 import { MODULE_CHECK_TYPE } from '@/constants/module'
 import { getAlarmLevelTheme, getMonitorStatusTheme } from '@/lib/alarm-theme'
@@ -87,12 +138,18 @@ export default {
     modules: {
       type: Array,
       default: () => []
+    },
+    gridDetailEnabled: {
+      type: Boolean,
+      default: false
     }
   },
-  setup() {
+  setup(props) {
     const detailVisible = ref(false)
     const detailLoading = ref(false)
     const alarmDetail = ref(null)
+    const gridDetailMap = reactive({})
+    const gridDetailLoadingMap = reactive({})
 
     const parseCheckParam = (checkParam) => {
       if (!checkParam) return {}
@@ -107,12 +164,62 @@ export default {
 
     const isGridModule = (mod) => mod.checkType === MODULE_CHECK_TYPE.CMS_GRID_UPDATE.value
 
+    const isGridDetailRow = (mod) => props.gridDetailEnabled && isGridModule(mod)
+
+    const getGridDetail = (moduleId) => gridDetailMap[moduleId]
+
+    const isGridDetailLoading = (moduleId) => !!gridDetailLoadingMap[moduleId]
+
     const GRID_CYCLE_LABELS = {
       wind: '07-19时/19-次日7时 · 13h',
       wave: '08-22时/22-次日8时 · 15h/11h',
       current: '08:30-17:30/17:30-次日8:30 · 12h/16h',
       sst: '08:30-17:30/17:30-次日8:30 · 12h/16h',
       storm_tide: '24小时内'
+    }
+
+    const gridDetailGroups = [
+      {
+        key: 'report',
+        label: '起报',
+        fields: [{ key: 'reportStartTime', label: '起报时间' }]
+      },
+      {
+        key: 'output',
+        label: '输出',
+        fields: [
+          { key: 'outputDataTime', label: '数据时间' },
+          { key: 'outputModifiedTime', label: '修改时间' }
+        ]
+      },
+      {
+        key: 'element',
+        label: '要素',
+        fields: [
+          { key: 'elementDataTime', label: '数据时间' },
+          { key: 'elementModifiedTime', label: '修改时间' }
+        ]
+      }
+    ]
+
+    const getGridDetailGroups = (mod) => {
+      const detail = getGridDetail(mod.id)
+      if (detail?.showOutput === false) {
+        return gridDetailGroups.filter(group => group.key !== 'output')
+      }
+      const preset = parseCheckParam(mod.checkParam).windowPreset
+      if (preset === 'storm_tide') {
+        return gridDetailGroups.filter(group => group.key !== 'output')
+      }
+      return gridDetailGroups
+    }
+
+    const getGridDetailEmptyText = (mod) => {
+      const preset = parseCheckParam(mod.checkParam).windowPreset
+      if (preset === 'storm_tide') {
+        return '查看起报与要素时间'
+      }
+      return '查看起报与 FTP 时间'
     }
 
     const parseAlarmType = (checkParam) => parseCheckParam(checkParam).type || ''
@@ -243,7 +350,47 @@ export default {
 
     const statusTheme = (mod) => getMonitorStatusTheme(effectiveStatus(mod), MONITOR_STATUS)
 
+    const getLinkedModuleIds = (mod, detail) => {
+      if (detail?.linkedModuleIds?.length) {
+        return detail.linkedModuleIds
+      }
+      const clickedPreset = parseCheckParam(mod.checkParam).windowPreset
+      if (['current', 'sst'].includes(clickedPreset)) {
+        return props.modules
+          .filter(item => ['current', 'sst'].includes(parseCheckParam(item.checkParam).windowPreset))
+          .map(item => item.id)
+      }
+      return [mod.id]
+    }
+
+    const handleGridDetailClick = async (mod) => {
+      const linkedIds = getLinkedModuleIds(mod, null)
+      if (linkedIds.some(id => gridDetailLoadingMap[id])) {
+        return
+      }
+      linkedIds.forEach(id => {
+        gridDetailLoadingMap[id] = true
+      })
+      try {
+        const res = await getSmartGridDetail(mod.id)
+        const targetIds = getLinkedModuleIds(mod, res.data)
+        targetIds.forEach(id => {
+          gridDetailMap[id] = res.data
+        })
+      } catch (error) {
+        ElMessage.error(error.message || '加载智能网格详情失败')
+      } finally {
+        linkedIds.forEach(id => {
+          gridDetailLoadingMap[id] = false
+        })
+      }
+    }
+
     const handleRowClick = async (mod) => {
+      if (isGridDetailRow(mod)) {
+        await handleGridDetailClick(mod)
+        return
+      }
       if (!isAlarmModule(mod)) {
         return
       }
@@ -265,6 +412,13 @@ export default {
       detailVisible,
       detailLoading,
       alarmDetail,
+      isGridDetailRow,
+      gridDetailGroups,
+      getGridDetailGroups,
+      getGridDetailEmptyText,
+      getGridDetail,
+      isGridDetailLoading,
+      handleGridDetailClick,
       isAlarmModule,
       isGridModule,
       isPublishedToday,
@@ -307,6 +461,152 @@ export default {
 
 .disaster-row:hover {
   background: #fafbfc;
+}
+
+.disaster-row--grid {
+  cursor: pointer;
+}
+
+.disaster-row--grid:hover {
+  background: #fafbfc;
+}
+
+.disaster-row--grid .row-primary {
+  align-items: center;
+}
+
+.row-grid-detail {
+  flex: 1.4;
+  min-width: 0;
+  margin-left: auto;
+  padding: 10px 14px;
+  border: 1px solid #e4eaf2;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fafbfd 0%, #f5f8fc 100%);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.row-grid-detail:hover {
+  border-color: #c5d4e8;
+  box-shadow: 0 2px 8px rgba(26, 54, 93, 0.06);
+}
+
+.grid-detail-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.grid-detail-board {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.grid-detail-group {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px;
+}
+
+.grid-detail-group:first-child {
+  padding-left: 0;
+}
+
+.grid-detail-group:last-child {
+  padding-right: 0;
+}
+
+.grid-detail-group + .grid-detail-group {
+  border-left: 1px solid #e8edf3;
+}
+
+.grid-group-tag {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #1e3a5f;
+  background: rgba(30, 58, 95, 0.08);
+}
+
+.grid-metric-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.grid-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.grid-metric-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.grid-metric-value {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  line-height: 1.4;
+}
+
+.grid-detail-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 0;
+  color: #64748b;
+}
+
+.grid-detail-empty .el-icon {
+  font-size: 15px;
+  color: #94a3b8;
+}
+
+.grid-detail-empty-text {
+  font-size: 13px;
+  color: #475569;
+}
+
+.grid-detail-empty-hint {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.grid-detail-remark {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #e8edf3;
+  font-size: 12px;
+  color: #b45309;
+}
+
+.grid-detail-remark .el-icon {
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 .disaster-row--static {
@@ -360,7 +660,7 @@ export default {
 }
 
 .row-alarm {
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -373,6 +673,31 @@ export default {
   font-weight: 600;
   color: #262626;
   line-height: 1.5;
+}
+
+.grid-update-headline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 140px;
+}
+
+.grid-update-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.grid-update-time {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e3a5f;
+  font-variant-numeric: tabular-nums;
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  line-height: 1.3;
 }
 
 .alarm-empty {
@@ -433,6 +758,31 @@ export default {
 }
 
 @media (max-width: 768px) {
+  .disaster-row--grid .row-primary {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .row-grid-detail {
+    margin-left: 0;
+    margin-top: 10px;
+  }
+
+  .grid-detail-board {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .grid-detail-group {
+    padding: 0;
+  }
+
+  .grid-detail-group + .grid-detail-group {
+    border-left: none;
+    padding-top: 14px;
+    border-top: 1px solid #e8edf3;
+  }
+
   .row-primary {
     flex-direction: column;
     gap: 8px;

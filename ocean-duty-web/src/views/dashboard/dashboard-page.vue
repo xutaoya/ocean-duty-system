@@ -106,7 +106,7 @@
         </h3>
         <span class="section-count">中国海洋预报网 · {{ smartGridModules.length }} 个模块</span>
       </div>
-      <MonitorDisasterPanel v-if="smartGridModules.length" :modules="smartGridModules" />
+      <MonitorDisasterPanel v-if="smartGridModules.length" :modules="smartGridModules" grid-detail-enabled />
       <div v-else class="empty-state empty-state--info">
         <el-icon :size="36"><InfoFilled /></el-icon>
         <p>暂无智能网格模块数据</p>
@@ -121,7 +121,7 @@
 <script>
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getDashboard, checkSites, checkModules } from '@/api/monitor'
+import { getDashboard, checkDashboard } from '@/api/monitor'
 import { MONITOR_STATUS, MODULE_CATEGORY } from '@/constants/monitor'
 import MonitorSiteCard from '@/components/monitor-site-card.vue'
 import MonitorDisasterPanel from '@/components/monitor-disaster-panel.vue'
@@ -187,10 +187,11 @@ export default {
     const handleCheck = async () => {
       checking.value = true
       try {
-        await checkSites()
-        await checkModules()
+        const res = await checkDashboard()
+        abnormalSites.value = res.data.abnormalSites || []
+        sites.value = res.data.sites || []
+        modules.value = res.data.modules || []
         ElMessage.success('检测完成')
-        await loadDashboard()
       } finally {
         checking.value = false
       }

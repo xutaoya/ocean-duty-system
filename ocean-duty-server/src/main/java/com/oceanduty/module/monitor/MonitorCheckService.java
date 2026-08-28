@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 /**
  * 网站监控检测服务
@@ -19,15 +21,20 @@ import java.util.List;
 public class MonitorCheckService {
 
     private final MonitorSiteDao monitorSiteDao;
+    private final ExecutorService monitorCheckExecutor;
 
     /**
      * 执行全部网站访问检测
      */
     public void checkAllSites() {
         List<MonitorSiteEntity> sites = monitorSiteDao.selectList(null);
-        for (MonitorSiteEntity site : sites) {
-            checkSite(site);
+        if (sites.isEmpty()) {
+            return;
         }
+        CompletableFuture<?>[] futures = sites.stream()
+                .map(site -> CompletableFuture.runAsync(() -> checkSite(site), monitorCheckExecutor))
+                .toArray(CompletableFuture[]::new);
+        CompletableFuture.allOf(futures).join();
     }
 
     /**

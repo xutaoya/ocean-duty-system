@@ -11,11 +11,13 @@ import com.oceanduty.module.monitor.domain.MonitorSiteVO;
 import com.oceanduty.util.HttpProbeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -30,6 +32,26 @@ public class MonitorQueryService {
     private final MonitorModuleDao monitorModuleDao;
     private final MonitorModuleCheckService monitorModuleCheckService;
     private final MonitorDashboardCacheService monitorDashboardCacheService;
+    private final MonitorCheckService monitorCheckService;
+
+    @Value("${ocean-duty.monitor.module-check-enabled:false}")
+    private boolean moduleCheckEnabled;
+
+    /**
+     * 并行执行网站与模块检测，并刷新仪表盘缓存
+     */
+    public DashboardVO runAllChecksAndRefreshDashboard() {
+        CompletableFuture<Void> sitesFuture = CompletableFuture.runAsync(monitorCheckService::checkAllSites);
+        CompletableFuture<Void> modulesFuture = CompletableFuture.runAsync(() -> {
+            if (moduleCheckEnabled) {
+                monitorModuleCheckService.checkAllModules();
+            } else {
+                monitorModuleCheckService.checkCmsModules();
+            }
+        });
+        CompletableFuture.allOf(sitesFuture, modulesFuture).join();
+        return refreshDashboardCache();
+    }
 
     /**
      * 获取监控仪表盘数据
