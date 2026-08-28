@@ -57,7 +57,7 @@ public class MonitorModuleSeedRunner implements CommandLineRunner {
                 gridModule(32L, 1L, "海浪", 6L, "wave"),
                 gridModule(33L, 1L, "海流", 7L, "current"),
                 gridModule(34L, 1L, "海温", 8L, "sst"),
-                gridModule(35L, 1L, "天文潮", 9L, "storm_tide")
+                gridModule(35L, 1L, "风暴增水", 9L, "storm_tide")
         );
     }
 

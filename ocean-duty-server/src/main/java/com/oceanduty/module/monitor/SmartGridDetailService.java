@@ -101,13 +101,20 @@ public class SmartGridDetailService {
         if (scanResult.output() != null) {
             builder.outputFileName(scanResult.output().fileName())
                     .outputDataTime(scanResult.output().dataTime())
-                    .outputModifiedTime(scanResult.output().modifiedTime());
+                    .outputModifiedTime(scanResult.output().modifiedTime())
+                    .outputFileSizeBytes(scanResult.output().fileSizeBytes());
         }
         if (scanResult.element() != null) {
+            LocalDateTime elementDataTime = scanResult.element().dataTime();
+            int offsetHours = SmartGridElementCatalog.elementDataTimeOffsetHours(element.key());
+            if (elementDataTime != null && offsetHours > 0) {
+                elementDataTime = elementDataTime.plusHours(offsetHours);
+            }
             builder.elementFolder(scanResult.element().folder())
                     .elementFileName(scanResult.element().fileName())
-                    .elementDataTime(scanResult.element().dataTime())
-                    .elementModifiedTime(scanResult.element().modifiedTime());
+                    .elementDataTime(elementDataTime)
+                    .elementModifiedTime(scanResult.element().modifiedTime())
+                    .elementFileSizeBytes(scanResult.element().fileSizeBytes());
         }
         appendMissingRemark(builder, element);
         return builder.build();

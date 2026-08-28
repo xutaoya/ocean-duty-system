@@ -56,7 +56,7 @@ public class MonitorDatasourceSeedRunner implements CommandLineRunner {
             seedPostgresDatasource(6L, "中国海洋预报网PG-海浪", "app_wave_height_grid", encryptedPassword);
             seedPostgresDatasource(7L, "中国海洋预报网PG-海流", "app_current_speed_grid", encryptedPassword);
             seedPostgresDatasource(8L, "中国海洋预报网PG-海温", "app_sst_grid", encryptedPassword);
-            seedPostgresDatasource(9L, "中国海洋预报网PG-天文潮", "app_storm_tide_grid", encryptedPassword);
+            seedPostgresDatasource(9L, "中国海洋预报网PG-风暴增水", "app_storm_tide_grid", encryptedPassword);
         } else {
             log.warn("未配置 GRID_DATASOURCE_PASSWORD，跳过默认智能网格数据源初始化，请在「数据源管理」中手动添加");
         }

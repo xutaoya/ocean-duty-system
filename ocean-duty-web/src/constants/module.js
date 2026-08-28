@@ -95,7 +95,7 @@ export const MODULE_CHECK_TYPE = {
           { value: 'wave', label: '海浪 · 15h/11h' },
           { value: 'current', label: '海流 · 12h/16h' },
           { value: 'sst', label: '海温 · 12h/16h' },
-          { value: 'storm_tide', label: '天文潮 · 24小时' }
+          { value: 'storm_tide', label: '风暴增水 · 24小时' }
         ]
       }
     ]

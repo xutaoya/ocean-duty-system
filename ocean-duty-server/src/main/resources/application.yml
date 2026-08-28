@@ -54,7 +54,7 @@ ocean-duty:
       host: ${GRID_FTP_HOST:128.5.10.65}
       port: ${GRID_FTP_PORT:21}
       username: ${GRID_FTP_USERNAME:ag_duty_watcher}
-      password: ${GRID_FTP_PASSWORD:}
+      password: ${GRID_FTP_PASSWORD:duty_nmefc}
       mount-base: ${GRID_FTP_MOUNT_BASE:/Volumes/128.5.10.65}
       connect-timeout-ms: ${GRID_FTP_CONNECT_TIMEOUT_MS:10000}
       data-timeout-ms: ${GRID_FTP_DATA_TIMEOUT_MS:30000}

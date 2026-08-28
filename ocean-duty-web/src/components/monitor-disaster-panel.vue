@@ -57,11 +57,14 @@
             <template v-else-if="getGridDetail(mod.id)">
               <div class="grid-detail-board">
                 <div
-                  v-for="group in getGridDetailGroups(mod)"
+                  v-for="(group, index) in getGridDetailGroups(mod)"
                   :key="group.key"
                   class="grid-detail-group"
                 >
-                  <span class="grid-group-tag">{{ group.label }}</span>
+                  <span class="grid-group-tag">
+                    <span class="grid-group-index">{{ index + 1 }}</span>
+                    {{ group.label }}
+                  </span>
                   <div class="grid-metric-list">
                     <div
                       v-for="field in group.fields"
@@ -69,7 +72,13 @@
                       class="grid-metric"
                     >
                       <span class="grid-metric-label">{{ field.label }}</span>
-                      <time class="grid-metric-value">{{ formatTime(getGridDetail(mod.id)[field.key]) }}</time>
+                      <component
+                        :is="field.type === 'time' ? 'time' : 'span'"
+                        :class="[
+                          'grid-metric-value',
+                          { 'grid-metric-value--alert': isChainTimeAlert(mod, group, field) }
+                        ]"
+                      >{{ formatGridDetailValue(getGridDetail(mod.id)[field.key], field) }}</component>
                     </div>
                   </div>
                 </div>
@@ -181,23 +190,25 @@ export default {
     const gridDetailGroups = [
       {
         key: 'report',
-        label: '起报',
-        fields: [{ key: 'reportStartTime', label: '起报时间' }]
+        label: '数据库',
+        fields: [{ key: 'reportStartTime', label: '起报时间', type: 'time' }]
       },
       {
         key: 'output',
-        label: '输出',
+        label: '处理后',
         fields: [
-          { key: 'outputDataTime', label: '数据时间' },
-          { key: 'outputModifiedTime', label: '修改时间' }
+          { key: 'outputDataTime', label: '处理后时间', type: 'time' },
+          { key: 'outputModifiedTime', label: '修改时间', type: 'time' },
+          { key: 'outputFileSizeBytes', label: '文件大小', type: 'size' }
         ]
       },
       {
         key: 'element',
-        label: '要素',
+        label: '处理前',
         fields: [
-          { key: 'elementDataTime', label: '数据时间' },
-          { key: 'elementModifiedTime', label: '修改时间' }
+          { key: 'elementDataTime', label: '处理前时间', type: 'time' },
+          { key: 'elementModifiedTime', label: '修改时间', type: 'time' },
+          { key: 'elementFileSizeBytes', label: '文件大小', type: 'size' }
         ]
       }
     ]
@@ -215,11 +226,8 @@ export default {
     }
 
     const getGridDetailEmptyText = (mod) => {
-      const preset = parseCheckParam(mod.checkParam).windowPreset
-      if (preset === 'storm_tide') {
-        return '查看起报与要素时间'
-      }
-      return '查看起报与 FTP 时间'
+      
+      return '查看数据链路'
     }
 
     const parseAlarmType = (checkParam) => parseCheckParam(checkParam).type || ''
@@ -340,6 +348,59 @@ export default {
       return time.replace('T', ' ').substring(0, 16)
     }
 
+    const formatFileSize = (bytes) => {
+      if (bytes == null || bytes < 0) return '-'
+      const units = ['B', 'KB', 'MB', 'GB', 'TB']
+      let size = Number(bytes)
+      let unitIndex = 0
+      while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024
+        unitIndex += 1
+      }
+      const digits = unitIndex === 0 ? 0 : size >= 100 ? 0 : size >= 10 ? 1 : 2
+      return `${size.toFixed(digits)} ${units[unitIndex]}`
+    }
+
+    const formatGridDetailValue = (value, field) => {
+      if (field.type === 'size') {
+        return formatFileSize(value)
+      }
+      return formatTime(value)
+    }
+
+    const parseDetailTime = (time) => {
+      if (!time) return null
+      const normalized = time.replace('T', ' ').substring(0, 16)
+      const timestamp = Date.parse(normalized.replace(' ', 'T'))
+      return Number.isNaN(timestamp) ? null : timestamp
+    }
+
+    const getChainTimeAlertKeys = (detail, groups) => {
+      const alerts = new Set()
+      const chainKeys = groups
+        .map(group => group.fields[0]?.key)
+        .filter(Boolean)
+      for (let i = 1; i < chainKeys.length; i += 1) {
+        const previous = parseDetailTime(detail[chainKeys[i - 1]])
+        const current = parseDetailTime(detail[chainKeys[i]])
+        if (previous != null && current != null && current > previous) {
+          alerts.add(chainKeys[i])
+        }
+      }
+      return alerts
+    }
+
+    const isChainTimeAlert = (mod, group, field) => {
+      if (field.key !== group.fields[0]?.key) {
+        return false
+      }
+      const detail = getGridDetail(mod.id)
+      if (!detail) {
+        return false
+      }
+      return getChainTimeAlertKeys(detail, getGridDetailGroups(mod)).has(field.key)
+    }
+
     const rowAccent = (mod) => {
       if (mod.alarmLevel) {
         return getAlarmLevelTheme(mod.alarmLevel)
@@ -431,6 +492,8 @@ export default {
       displayTitle,
       displayTitleText,
       formatTime,
+      formatGridDetailValue,
+      isChainTimeAlert,
       rowAccent,
       statusTheme,
       handleRowClick
@@ -531,6 +594,8 @@ export default {
 
 .grid-group-tag {
   display: inline-flex;
+  align-items: center;
+  gap: 6px;
   align-self: flex-start;
   padding: 2px 10px;
   border-radius: 4px;
@@ -539,6 +604,20 @@ export default {
   letter-spacing: 0.06em;
   color: #1e3a5f;
   background: rgba(30, 58, 95, 0.08);
+}
+
+.grid-group-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: #1e3a5f;
 }
 
 .grid-metric-list {
@@ -567,6 +646,11 @@ export default {
   font-variant-numeric: tabular-nums;
   font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
   line-height: 1.4;
+}
+
+.grid-metric-value--alert {
+  color: #cf1322;
+  font-weight: 700;
 }
 
 .grid-detail-empty {

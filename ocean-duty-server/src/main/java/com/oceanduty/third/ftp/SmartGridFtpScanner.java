@@ -254,7 +254,7 @@ public class SmartGridFtpScanner {
             return null;
         }
         LocalDateTime modifiedTime = readModifiedTime(path);
-        return new OutputFileInfo(fileName, dataTime, modifiedTime);
+        return new OutputFileInfo(fileName, dataTime, modifiedTime, readFileSize(path));
     }
 
     private OutputFileInfo toOutputFileInfo(String fileName, FTPFile file, SmartGridElementCatalog.ElementDef element) {
@@ -262,7 +262,7 @@ public class SmartGridFtpScanner {
         if (dataTime == null) {
             return null;
         }
-        return new OutputFileInfo(fileName, dataTime, toLocalDateTime(file.getTimestamp()));
+        return new OutputFileInfo(fileName, dataTime, toLocalDateTime(file.getTimestamp()), readFileSize(file));
     }
 
     private ElementFileInfo toElementFileInfo(String folder, String fileName, Path path,
@@ -271,7 +271,7 @@ public class SmartGridFtpScanner {
         if (dataTime == null) {
             return null;
         }
-        return new ElementFileInfo(folder, fileName, dataTime, readModifiedTime(path));
+        return new ElementFileInfo(folder, fileName, dataTime, readModifiedTime(path), readFileSize(path));
     }
 
     private ElementFileInfo toElementFileInfo(String folder, String fileName, FTPFile file,
@@ -280,7 +280,7 @@ public class SmartGridFtpScanner {
         if (dataTime == null) {
             return null;
         }
-        return new ElementFileInfo(folder, fileName, dataTime, toLocalDateTime(file.getTimestamp()));
+        return new ElementFileInfo(folder, fileName, dataTime, toLocalDateTime(file.getTimestamp()), readFileSize(file));
     }
 
     private boolean matchesElementFile(String fileName, SmartGridElementCatalog.ElementDef element) {
@@ -360,6 +360,22 @@ public class SmartGridFtpScanner {
         }
     }
 
+    private Long readFileSize(Path path) {
+        try {
+            return Files.size(path);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private Long readFileSize(FTPFile file) {
+        if (file == null) {
+            return null;
+        }
+        long size = file.getSize();
+        return size >= 0 ? size : null;
+    }
+
     private LocalDateTime toLocalDateTime(java.util.Calendar calendar) {
         if (calendar == null) {
             return null;
@@ -383,10 +399,11 @@ public class SmartGridFtpScanner {
         }
     }
 
-    public record OutputFileInfo(String fileName, LocalDateTime dataTime, LocalDateTime modifiedTime) {
+    public record OutputFileInfo(String fileName, LocalDateTime dataTime, LocalDateTime modifiedTime, Long fileSizeBytes) {
     }
 
-    public record ElementFileInfo(String folder, String fileName, LocalDateTime dataTime, LocalDateTime modifiedTime) {
+    public record ElementFileInfo(String folder, String fileName, LocalDateTime dataTime, LocalDateTime modifiedTime,
+                                  Long fileSizeBytes) {
     }
 
     public record FtpScanResult(OutputFileInfo output, ElementFileInfo element, String errorMessage) {

@@ -31,11 +31,15 @@ public class SmartGridDetailVO {
 
     private String outputFileName;
 
+    private Long outputFileSizeBytes;
+
     private LocalDateTime elementDataTime;
 
     private LocalDateTime elementModifiedTime;
 
     private String elementFileName;
+
+    private Long elementFileSizeBytes;
 
     private String elementFolder;
 

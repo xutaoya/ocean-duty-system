@@ -56,6 +56,25 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         removeLegacyNmefcModules();
         fixTodayPublishedModuleStatus();
         fixMonthlyPublishedModuleStatus();
+        renameStormTideModule();
+    }
+
+    /**
+     * 天文潮模块更名为风暴增水
+     */
+    private void renameStormTideModule() {
+        int moduleUpdated = jdbcTemplate.update(
+                "UPDATE monitor_module SET module_name = '风暴增水' "
+                        + "WHERE id = 35 AND deleted_flag = 0 AND module_name = '天文潮'");
+        if (moduleUpdated > 0) {
+            log.info("已将模块「天文潮」更名为「风暴增水」");
+        }
+        int datasourceUpdated = jdbcTemplate.update(
+                "UPDATE monitor_datasource SET ds_name = '中国海洋预报网PG-风暴增水' "
+                        + "WHERE id = 9 AND deleted_flag = 0 AND ds_name = '中国海洋预报网PG-天文潮'");
+        if (datasourceUpdated > 0) {
+            log.info("已将数据源「中国海洋预报网PG-天文潮」更名为「中国海洋预报网PG-风暴增水」");
+        }
     }
 
     /**
@@ -139,7 +158,7 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         insertGridDatasource(6L, "中国海洋预报网PG-海浪", "app_wave_height_grid", encryptedPassword);
         insertGridDatasource(7L, "中国海洋预报网PG-海流", "app_current_speed_grid", encryptedPassword);
         insertGridDatasource(8L, "中国海洋预报网PG-海温", "app_sst_grid", encryptedPassword);
-        insertGridDatasource(9L, "中国海洋预报网PG-天文潮", "app_storm_tide_grid", encryptedPassword);
+        insertGridDatasource(9L, "中国海洋预报网PG-风暴增水", "app_storm_tide_grid", encryptedPassword);
     }
 
     private void insertGridDatasource(long id, String name, String tableName, String encryptedPassword) {

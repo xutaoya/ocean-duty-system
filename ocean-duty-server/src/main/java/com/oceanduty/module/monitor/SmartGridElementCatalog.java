@@ -50,7 +50,7 @@ public final class SmartGridElementCatalog {
                     Pattern.compile("ws_10km_expect_(\\d{12})_")),
             element("wave", "海浪", 6L, "OutputData/Wave", "advancedWaveGrid_", "Wave", "wave_wve_",
                     ElementLayout.FLAT, "", true, ".nc",
-                    Pattern.compile("advancedWaveGrid_(\\d{10})_"),
+                    Pattern.compile("advancedWaveGrid_(\\d{10})_(\\d{14})\\.nc$"),
                     Pattern.compile("wave_wve_(\\d{10})\\.nc$")),
             element("current", "海流", 7L, "OutputData/Circulation", "advancedCirculationGrid_", "Circulation", "FishGrid_",
                     ElementLayout.FLAT, "circulation", true, ".nc",
@@ -60,7 +60,7 @@ public final class SmartGridElementCatalog {
                     ElementLayout.FLAT, "circulation", true, ".nc",
                     Pattern.compile("advancedCirculationGrid_(\\d{10})_"),
                     Pattern.compile("FishGrid_(\\d{4})-(\\d{2})-(\\d{2})-(\\d{2})_SST\\.nc$")),
-            element("storm_tide", "天文潮", 9L, "", "", "Tide", "cswd",
+            element("storm_tide", "风暴增水", 9L, "", "", "Tide", "cswd",
                     ElementLayout.FLAT, "", false, ".txt",
                     null,
                     Pattern.compile("cswd(\\d{10})\\.txt$"))
@@ -82,5 +82,15 @@ public final class SmartGridElementCatalog {
                 .filter(group -> group != null && !group.isBlank())
                 .findFirst()
                 .orElse(elementKey);
+    }
+
+    /**
+     * 处理前时间在展示时需叠加的小时偏移（风/浪/风暴增水 +20h）
+     */
+    public static int elementDataTimeOffsetHours(String elementKey) {
+        if ("wind".equals(elementKey) || "wave".equals(elementKey) || "storm_tide".equals(elementKey)) {
+            return 20;
+        }
+        return 0;
     }
 }
