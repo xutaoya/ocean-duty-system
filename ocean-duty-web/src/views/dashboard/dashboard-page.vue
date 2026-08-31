@@ -136,7 +136,8 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getDashboard, checkDashboard } from '@/api/monitor'
 import { getDutyLogSnapshotStatus, recordDutyLogSnapshot } from '@/api/duty'
-import { MONITOR_STATUS, MODULE_CATEGORY } from '@/constants/monitor'
+import { MODULE_CATEGORY } from '@/constants/monitor'
+import { aggregateDashboardStats } from '@/lib/monitor-effective-status'
 import MonitorSiteCard from '@/components/monitor-site-card.vue'
 import MonitorDisasterPanel from '@/components/monitor-disaster-panel.vue'
 import DashboardPageSkeleton from '@/components/dashboard-page-skeleton.vue'
@@ -200,16 +201,12 @@ export default {
       }
     }
 
-    const stats = computed(() => {
-      const total = sites.value.length
-      const normal = sites.value.filter(s => s.status === MONITOR_STATUS.NORMAL.value).length
-      const warning = sites.value.filter(s => s.status === MONITOR_STATUS.WARNING.value).length
-      const error = sites.value.filter(s => s.status === MONITOR_STATUS.ERROR.value).length
-      return { total, normal, warning, error }
-    })
+    const stats = computed(() =>
+      aggregateDashboardStats(sites.value, modules.value)
+    )
 
     const statCards = computed(() => [
-      { key: 'total', label: '监控站点', value: stats.value.total, icon: 'Monitor' },
+      { key: 'total', label: '监控项', value: stats.value.total, icon: 'Monitor' },
       { key: 'normal', label: '运行正常', value: stats.value.normal, icon: 'CircleCheckFilled' },
       { key: 'warning', label: '性能警告', value: stats.value.warning, icon: 'WarningFilled' },
       { key: 'error', label: '异常离线', value: stats.value.error, icon: 'CircleCloseFilled' }
