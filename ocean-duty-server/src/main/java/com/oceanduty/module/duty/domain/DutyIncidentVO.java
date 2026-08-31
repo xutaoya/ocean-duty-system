@@ -50,4 +50,16 @@ public class DutyIncidentVO {
     private LocalDateTime lastSeenTime;
 
     private LocalDateTime recoveredTime;
+
+    /** 异常-恢复闭环摘要（便于列表展示与导出） */
+    private String lifecycleText;
+
+    /** 本条日志中的事件角色 start / recover / ongoing / related */
+    private String eventRole;
+
+    private String eventRoleLabel;
+
+    private String firstStatusLabel;
+
+    private String lastStatusLabel;
 }

@@ -56,6 +56,10 @@ public class DutyLogDetailVO {
 
     private DutyLogChangeSummaryVO changeSummary;
 
+    private String closureSummary;
+
+    private List<DutyLogTimelineVO> timeline;
+
     private List<DutyLogItemVO> items;
 
     private List<DutyIncidentVO> incidents;

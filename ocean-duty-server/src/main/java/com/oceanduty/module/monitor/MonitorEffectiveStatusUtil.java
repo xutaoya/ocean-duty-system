@@ -2,6 +2,7 @@ package com.oceanduty.module.monitor;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.oceanduty.constant.ModuleCategoryConst;
 import com.oceanduty.constant.ModuleCheckTypeConst;
 import com.oceanduty.constant.MonitorStatusConst;
 import com.oceanduty.module.monitor.domain.MonitorModuleVO;
@@ -41,6 +42,23 @@ public final class MonitorEffectiveStatusUtil {
 
     public static boolean isAbnormal(Integer status) {
         return status != null && !MonitorStatusConst.NORMAL.equals(status);
+    }
+
+    /**
+     * 灾害预警仅展示警报内容，不参与值班日志异常统计
+     */
+    public static boolean shouldIncludeInDutyLog(MonitorModuleVO module) {
+        if (module == null) {
+            return false;
+        }
+        return !ModuleCategoryConst.DISASTER_WARNING.equals(module.getModuleCategory());
+    }
+
+    public static boolean isDutyLogAbnormal(MonitorModuleVO module) {
+        if (!shouldIncludeInDutyLog(module)) {
+            return false;
+        }
+        return isAbnormal(resolveEffectiveStatus(module));
     }
 
     private static boolean isContentCurrent(MonitorModuleVO module) {

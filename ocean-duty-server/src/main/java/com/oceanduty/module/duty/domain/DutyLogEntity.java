@@ -124,6 +124,11 @@ public class DutyLogEntity {
     private String snapshotJson;
 
     /**
+     * 异常-恢复闭环摘要
+     */
+    private String closureSummary;
+
+    /**
      * 删除标记
      */
     @TableLogic

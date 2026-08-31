@@ -56,7 +56,7 @@ public class DutyIncidentService {
                                 .eq(DutyIncidentEntity::getRecoverLogId, logId))
                         .orderByAsc(DutyIncidentEntity::getFirstSeenTime))
                 .stream()
-                .map(this::toVO)
+                .map(entity -> toVO(entity, logId))
                 .collect(Collectors.toList());
     }
 
@@ -65,7 +65,7 @@ public class DutyIncidentService {
                         .eq(DutyIncidentEntity::getDutyDate, dutyDate)
                         .orderByAsc(DutyIncidentEntity::getFirstSeenTime))
                 .stream()
-                .map(this::toVO)
+                .map(entity -> toVO(entity, null))
                 .collect(Collectors.toList());
     }
 
@@ -133,7 +133,8 @@ public class DutyIncidentService {
                 .last("LIMIT 1"));
     }
 
-    private DutyIncidentVO toVO(DutyIncidentEntity entity) {
+    private DutyIncidentVO toVO(DutyIncidentEntity entity, Long logId) {
+        String eventRole = DutyLogClosureFormatter.resolveEventRole(logId, entity);
         return DutyIncidentVO.builder()
                 .id(entity.getId())
                 .targetType(entity.getTargetType())
@@ -146,12 +147,17 @@ public class DutyIncidentService {
                 .incidentStatus(entity.getIncidentStatus())
                 .firstStatus(entity.getFirstStatus())
                 .lastStatus(entity.getLastStatus())
+                .firstStatusLabel(DutyLogClosureFormatter.statusLabel(entity.getFirstStatus()))
+                .lastStatusLabel(DutyLogClosureFormatter.statusLabel(entity.getLastStatus()))
                 .firstLogId(entity.getFirstLogId())
                 .lastLogId(entity.getLastLogId())
                 .recoverLogId(entity.getRecoverLogId())
                 .firstSeenTime(entity.getFirstSeenTime())
                 .lastSeenTime(entity.getLastSeenTime())
                 .recoveredTime(entity.getRecoveredTime())
+                .lifecycleText(DutyLogClosureFormatter.formatIncidentLifecycle(entity))
+                .eventRole(eventRole)
+                .eventRoleLabel(DutyLogClosureFormatter.eventRoleLabel(eventRole))
                 .build();
     }
 

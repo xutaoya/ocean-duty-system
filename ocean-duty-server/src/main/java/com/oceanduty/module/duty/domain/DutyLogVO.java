@@ -86,4 +86,9 @@ public class DutyLogVO {
      * 恢复数
      */
     private Integer recoveredCount;
+
+    /**
+     * 异常-恢复闭环摘要
+     */
+    private String closureSummary;
 }

@@ -130,6 +130,14 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="异常闭环" min-width="220" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span :class="{ 'text-muted': !row.closureSummary }">
+              {{ row.closureSummary || (row.logSource === 'snapshot' ? '全部正常' : '-') }}
+            </span>
+          </template>
+        </el-table-column>
+
         <el-table-column label="故障原因" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">
             <span :class="{ 'text-muted': !row.problem }">{{ row.problem || '-' }}</span>
@@ -152,8 +160,12 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="140" fixed="right" align="center">
+        <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
+            <el-button type="primary" link @click="handleView(row)">
+              <el-icon><View /></el-icon>
+              详情
+            </el-button>
             <el-button type="primary" link @click="handleEdit(row)">
               <el-icon><Edit /></el-icon>
               编辑
@@ -263,6 +275,8 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
       </template>
     </el-dialog>
+
+    <DutyLogDetailDialog v-model="detailVisible" :log-id="detailLogId" />
   </div>
   <!-- end 值班日志列表 -->
 </template>
@@ -271,13 +285,17 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { addDutyLog, deleteDutyLog, queryDutyLog, updateDutyLog } from '@/api/duty'
+import DutyLogDetailDialog from '@/components/duty-log-detail-dialog.vue'
 
 export default {
   name: 'DutyLogList',
+  components: { DutyLogDetailDialog },
   setup() {
     const loading = ref(false)
     const submitting = ref(false)
     const dialogVisible = ref(false)
+    const detailVisible = ref(false)
+    const detailLogId = ref(null)
     const isEdit = ref(false)
     const formRef = ref(null)
     const tableData = ref([])
@@ -309,24 +327,48 @@ export default {
     const dialogTitle = computed(() => (isEdit.value ? '编辑值班日志' : '填写值班日志'))
 
     const issueCount = computed(() => tableData.value.filter(row => hasProblem(row)).length)
-    const recoveredCount = computed(() => tableData.value.filter(row => !!row.recoverTime).length)
+    const recoveredCount = computed(() => tableData.value.filter(row =>
+      (row.recoveredCount != null && row.recoveredCount > 0) || !!row.recoverTime
+    ).length)
 
     const rules = {
       dutyTime: [{ required: true, message: '请选择值班时间', trigger: 'change' }]
     }
 
+    const resolveAbnormalCount = (row) => {
+      if (row.abnormalCount != null && row.abnormalCount > 0) {
+        return row.abnormalCount
+      }
+      const countFromStatus = (status, prefix) => {
+        if (!status || status.includes('全部正常') || !status.startsWith(prefix)) {
+          return 0
+        }
+        const body = status.slice(prefix.length).trim()
+        if (!body) {
+          return 0
+        }
+        return body.split('、').filter(Boolean).length
+      }
+      return countFromStatus(row.siteStatus, '异常站点:')
+        + countFromStatus(row.moduleStatus, '异常模块:')
+    }
+
     const hasProblem = (row) => {
-      if (row.abnormalCount != null) {
-        return row.abnormalCount > 0
+      if (resolveAbnormalCount(row) > 0) {
+        return true
       }
       return !!(row.problem && row.problem.trim())
     }
 
     const issueLabel = (row) => {
-      if (row.abnormalCount != null) {
-        return row.abnormalCount > 0 ? `${row.abnormalCount}项异常` : '正常'
+      const count = resolveAbnormalCount(row)
+      if (count > 0) {
+        return `${count}项异常`
       }
-      return hasProblem(row) ? '有异常' : '正常'
+      if (row.problem?.trim()) {
+        return '有异常'
+      }
+      return '正常'
     }
 
     const actionTypeLabel = (row) => {
@@ -392,6 +434,11 @@ export default {
       dialogVisible.value = true
     }
 
+    const handleView = (row) => {
+      detailLogId.value = row.id
+      detailVisible.value = true
+    }
+
     const handleEdit = (row) => {
       isEdit.value = true
       form.id = row.id
@@ -443,6 +490,8 @@ export default {
       loading,
       submitting,
       dialogVisible,
+      detailVisible,
+      detailLogId,
       formRef,
       tableData,
       total,
@@ -465,6 +514,7 @@ export default {
       handleSizeChange,
       resetForm,
       handleAdd,
+      handleView,
       handleEdit,
       handleSubmit,
       handleDelete

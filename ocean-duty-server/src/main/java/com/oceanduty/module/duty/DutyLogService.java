@@ -8,6 +8,7 @@ import com.oceanduty.common.domain.RequestUser;
 import com.oceanduty.common.domain.ResponseDTO;
 import com.oceanduty.common.exception.BusinessException;
 import com.oceanduty.constant.DutyLogActionTypeConst;
+import com.oceanduty.module.duty.domain.DutyIncidentVO;
 import com.oceanduty.module.duty.domain.DutyLogChangeSummaryVO;
 import com.oceanduty.module.duty.domain.DutyLogDTO;
 import com.oceanduty.module.duty.domain.DutyLogDetailVO;
@@ -15,12 +16,14 @@ import com.oceanduty.module.duty.domain.DutyLogEntity;
 import com.oceanduty.module.duty.domain.DutyLogItemEntity;
 import com.oceanduty.module.duty.domain.DutyLogItemVO;
 import com.oceanduty.module.duty.domain.DutyLogQueryDTO;
+import com.oceanduty.module.duty.domain.DutyLogTimelineVO;
 import com.oceanduty.module.duty.domain.DutyLogVO;
 import com.oceanduty.util.RequestUserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -68,14 +71,24 @@ public class DutyLogService {
         if (entity == null) {
             throw new BusinessException(ResponseCodeConst.NOT_FOUND);
         }
-        List<DutyLogItemVO> items = dutyLogItemDao.selectList(new LambdaQueryWrapper<DutyLogItemEntity>()
+        List<DutyLogItemEntity> itemEntities = dutyLogItemDao.selectList(new LambdaQueryWrapper<DutyLogItemEntity>()
                         .eq(DutyLogItemEntity::getLogId, id)
-                        .orderByAsc(DutyLogItemEntity::getId))
-                .stream()
-                .map(this::toItemVO)
-                .collect(Collectors.toList());
+                        .orderByAsc(DutyLogItemEntity::getId));
+        DutyLogDetailEnricher.normalizeItems(itemEntities);
+
         DutyLogChangeSummaryVO changeSummary = dutyIncidentService.readJson(
                 entity.getChangeSummary(), DutyLogChangeSummaryVO.class);
+        if (changeSummary == null && !itemEntities.isEmpty()) {
+            changeSummary = DutyLogDetailEnricher.buildChangeSummary(itemEntities);
+        }
+
+        List<DutyIncidentVO> incidents = DutyLogDetailEnricher.enrichIncidents(
+                entity, itemEntities, dutyIncidentService.listByLogId(id));
+        String closureSummary = DutyLogDetailEnricher.resolveClosureSummary(entity, changeSummary);
+
+        List<DutyLogItemVO> items = itemEntities.stream()
+                .map(this::toItemVO)
+                .collect(Collectors.toList());
         return ResponseDTO.succ(DutyLogDetailVO.builder()
                 .id(entity.getId())
                 .userId(entity.getUserId())
@@ -96,8 +109,10 @@ public class DutyLogService {
                 .changedCount(entity.getChangedCount())
                 .recoveredCount(entity.getRecoveredCount())
                 .changeSummary(changeSummary)
+                .closureSummary(closureSummary)
+                .timeline(buildTimeline(itemEntities))
                 .items(items)
-                .incidents(dutyIncidentService.listByLogId(id))
+                .incidents(incidents)
                 .build());
     }
 
@@ -164,10 +179,29 @@ public class DutyLogService {
                 .recoverTime(entity.getRecoverTime())
                 .logSource(entity.getLogSource())
                 .actionType(entity.getActionType())
-                .abnormalCount(entity.getAbnormalCount())
+                .abnormalCount(DutyLogDetailEnricher.resolveAbnormalCount(entity))
                 .newAbnormalCount(entity.getNewAbnormalCount())
                 .recoveredCount(entity.getRecoveredCount())
+                .closureSummary(DutyLogDetailEnricher.resolveClosureSummary(entity, null))
                 .build();
+    }
+
+    private List<DutyLogTimelineVO> buildTimeline(List<DutyLogItemEntity> items) {
+        List<DutyLogTimelineVO> timeline = new ArrayList<>();
+        for (DutyLogItemEntity item : items) {
+            timeline.add(DutyLogTimelineVO.builder()
+                    .targetType(item.getTargetType())
+                    .targetKey(item.getTargetKey())
+                    .targetName(item.getTargetName())
+                    .source("item")
+                    .changeType(item.getChangeType())
+                    .description(DutyLogClosureFormatter.formatItemTimeline(item))
+                    .status(item.getStatus())
+                    .previousStatus(item.getPreviousStatus())
+                    .statusLabel(item.getStatusLabel())
+                    .build());
+        }
+        return timeline;
     }
 
     private DutyLogItemVO toItemVO(DutyLogItemEntity entity) {

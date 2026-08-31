@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS duty_log (
     changed_count INTEGER DEFAULT 0,
     recovered_count INTEGER DEFAULT 0,
     snapshot_json TEXT,
+    closure_summary TEXT,
     deleted_flag  TINYINT      NOT NULL DEFAULT 0,
     create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP

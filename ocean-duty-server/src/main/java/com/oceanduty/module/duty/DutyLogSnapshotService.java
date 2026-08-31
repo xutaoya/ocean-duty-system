@@ -110,6 +110,7 @@ public class DutyLogSnapshotService {
                 .newAbnormalCount(diff.getNewAbnormalCount())
                 .changedCount(diff.getChangedCount())
                 .recoveredCount(diff.getRecoveredCount())
+                .closureSummary(DutyLogClosureFormatter.buildClosureSummary(diff.getSummary()))
                 .snapshotJson(writeSnapshotJson(snapshot))
                 .build();
         dutyLogDao.insert(entity);
@@ -176,8 +177,8 @@ public class DutyLogSnapshotService {
         }
         if (dashboard.getModules() != null) {
             dashboard.getModules().stream()
-                    .filter(module -> MonitorEffectiveStatusUtil.isAbnormal(
-                            MonitorEffectiveStatusUtil.resolveEffectiveStatus(module)))
+                    .filter(MonitorEffectiveStatusUtil::shouldIncludeInDutyLog)
+                    .filter(MonitorEffectiveStatusUtil::isDutyLogAbnormal)
                     .map(this::toModuleItem)
                     .forEach(items::add);
         }

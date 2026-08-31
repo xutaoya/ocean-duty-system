@@ -113,6 +113,7 @@
 
       <div class="row-side">
         <span
+          v-if="shouldShowStatus(mod)"
           class="status-pill"
           :style="{ color: statusTheme(mod).color, background: statusTheme(mod).bg }"
         >
@@ -135,7 +136,7 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getModuleAlarmDetail, getSmartGridDetail } from '@/api/monitor'
-import { MONITOR_STATUS } from '@/constants/monitor'
+import { MONITOR_STATUS, MODULE_CATEGORY } from '@/constants/monitor'
 import { MODULE_CHECK_TYPE } from '@/constants/module'
 import { getAlarmLevelTheme, getMonitorStatusTheme } from '@/lib/alarm-theme'
 import MonitorAlarmDetailDialog from '@/components/monitor-alarm-detail-dialog.vue'
@@ -170,6 +171,11 @@ export default {
     }
 
     const isAlarmModule = (mod) => mod.checkType === MODULE_CHECK_TYPE.CMS_FORECAST_ALARM.value
+
+    const isDisasterWarningModule = (mod) =>
+      mod.moduleCategory === MODULE_CATEGORY.DISASTER_WARNING.value
+
+    const shouldShowStatus = (mod) => !isDisasterWarningModule(mod)
 
     const isGridModule = (mod) => mod.checkType === MODULE_CHECK_TYPE.CMS_GRID_UPDATE.value
 
@@ -405,6 +411,9 @@ export default {
       if (mod.alarmLevel) {
         return getAlarmLevelTheme(mod.alarmLevel)
       }
+      if (isDisasterWarningModule(mod)) {
+        return { accent: '#1890ff', tagType: 'info' }
+      }
       const theme = getMonitorStatusTheme(effectiveStatus(mod), MONITOR_STATUS)
       return { accent: theme.color, tagType: 'info' }
     }
@@ -481,6 +490,8 @@ export default {
       isGridDetailLoading,
       handleGridDetailClick,
       isAlarmModule,
+      isDisasterWarningModule,
+      shouldShowStatus,
       isGridModule,
       isPublishedToday,
       isContentCurrent,

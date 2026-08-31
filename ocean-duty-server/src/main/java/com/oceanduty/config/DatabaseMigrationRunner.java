@@ -74,6 +74,7 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         addColumnIfMissing("duty_log", dutyLogColumns, "changed_count", "INTEGER DEFAULT 0");
         addColumnIfMissing("duty_log", dutyLogColumns, "recovered_count", "INTEGER DEFAULT 0");
         addColumnIfMissing("duty_log", dutyLogColumns, "snapshot_json", "TEXT");
+        addColumnIfMissing("duty_log", dutyLogColumns, "closure_summary", "TEXT");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_duty_log_duty_date ON duty_log(duty_date)");
 
         ensureDutyLogItemTable();
