@@ -88,11 +88,12 @@ public class DutyLogSnapshotService {
         }
 
         List<DutyLogItemEntity> previousAbnormalItems = loadPreviousAbnormalItems(lastTodayLog);
-        DutyLogSnapshotDiffUtil.DiffResult diff = DutyLogSnapshotDiffUtil.diff(snapshot.getItems(), previousAbnormalItems);
-
         RequestUser requestUser = requireRequestUser();
         String userName = resolveRealName(requestUser);
         LocalDateTime now = LocalDateTime.now();
+
+        DutyLogSnapshotDiffUtil.DiffResult diff = DutyLogSnapshotDiffUtil.diff(snapshot.getItems(), previousAbnormalItems);
+        DutyLogEventTimeEnricher.enrich(diff, dashboard, previousAbnormalItems, now);
 
         DutyLogEntity entity = DutyLogEntity.builder()
                 .userId(requestUser.getUserId())
@@ -254,6 +255,8 @@ public class DutyLogSnapshotService {
                     .previousStatus(row.getPreviousStatus())
                     .stateToken(row.getStateToken())
                     .detailJson(writeDetailJson(item.getDetail()))
+                    .eventTime(row.getEventTime())
+                    .eventTimeType(row.getEventTimeType())
                     .build();
             dutyLogItemDao.insert(entity);
         }

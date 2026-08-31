@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 public final class DutyLogClosureFormatter {
 
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter EVENT_TIME_FORMAT = DateTimeFormatter.ofPattern("MM-dd HH:mm");
 
     private DutyLogClosureFormatter() {
     }
@@ -38,6 +39,13 @@ public final class DutyLogClosureFormatter {
             return "-";
         }
         return time.format(TIME_FORMAT);
+    }
+
+    public static String formatEventTime(LocalDateTime time) {
+        if (time == null) {
+            return "-";
+        }
+        return time.format(EVENT_TIME_FORMAT);
     }
 
     public static String formatChangeEntry(DutyLogChangeEntryVO entry) {
@@ -69,10 +77,13 @@ public final class DutyLogClosureFormatter {
 
     public static String formatIncidentLifecycle(DutyIncidentEntity incident) {
         String prefix = targetLabel(incident.getTargetType(), incident.getTargetName());
-        String start = formatTime(incident.getFirstSeenTime()) + " " + statusLabel(incident.getFirstStatus());
+        LocalDateTime faultTime = incident.getFirstFaultTime() != null
+                ? incident.getFirstFaultTime()
+                : incident.getFirstSeenTime();
+        String start = formatEventTime(faultTime) + " " + statusLabel(incident.getFirstStatus());
         if (DutyIncidentStatusConst.RECOVERED.equals(incident.getIncidentStatus())
                 && incident.getRecoveredTime() != null) {
-            return prefix + "：" + start + " → " + formatTime(incident.getRecoveredTime()) + " 已恢复";
+            return prefix + "：" + start + " → " + formatEventTime(incident.getRecoveredTime()) + " 已恢复";
         }
         return prefix + "：" + start + " → 进行中";
     }
@@ -104,17 +115,20 @@ public final class DutyLogClosureFormatter {
 
     public static String formatItemTimeline(DutyLogItemEntity item) {
         String prefix = targetLabel(item.getTargetType(), item.getTargetName());
+        String timePrefix = item.getEventTime() != null
+                ? formatEventTime(item.getEventTime()) + " "
+                : "";
         String changeType = item.getChangeType();
         if (changeType == null) {
-            return prefix + " " + item.getStatusLabel();
+            return timePrefix + prefix + " " + item.getStatusLabel();
         }
         return switch (changeType) {
-            case "new" -> prefix + " 出现异常(" + item.getStatusLabel() + ")";
-            case "changed" -> prefix + " 状态变化 "
+            case "new" -> timePrefix + prefix + " 出现故障(" + item.getStatusLabel() + ")";
+            case "changed" -> timePrefix + prefix + " 状态变化 "
                     + statusLabel(item.getPreviousStatus()) + "→" + item.getStatusLabel();
-            case "persistent" -> prefix + " 持续异常(" + item.getStatusLabel() + ")";
-            case "recovered" -> prefix + " 恢复为正常(原" + statusLabel(item.getPreviousStatus()) + ")";
-            default -> prefix + " " + item.getStatusLabel();
+            case "persistent" -> timePrefix + prefix + " 持续异常(" + item.getStatusLabel() + ")";
+            case "recovered" -> timePrefix + prefix + " 恢复为正常(原" + statusLabel(item.getPreviousStatus()) + ")";
+            default -> timePrefix + prefix + " " + item.getStatusLabel();
         };
     }
 

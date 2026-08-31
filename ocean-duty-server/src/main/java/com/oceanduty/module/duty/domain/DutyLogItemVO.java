@@ -41,4 +41,8 @@ public class DutyLogItemVO {
     private String stateToken;
 
     private String detailJson;
+
+    private LocalDateTime eventTime;
+
+    private String eventTimeType;
 }

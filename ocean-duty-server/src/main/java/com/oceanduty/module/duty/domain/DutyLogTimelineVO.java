@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 /**
  * 日志时间线条目
  */
@@ -36,4 +38,8 @@ public class DutyLogTimelineVO {
     private Integer previousStatus;
 
     private String statusLabel;
+
+    private LocalDateTime eventTime;
+
+    private String eventTimeType;
 }

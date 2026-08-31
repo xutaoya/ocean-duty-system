@@ -12,7 +12,7 @@
         <div class="detail-head">
           <div>
             <div class="detail-user">{{ detail.userName || '-' }}</div>
-            <div class="detail-time">{{ formatTime(detail.dutyTime) }}</div>
+            <div class="detail-time">记录时间：{{ formatTime(detail.dutyTime) }}</div>
           </div>
           <el-tag size="small" effect="plain">{{ actionTypeLabel(detail.actionType) }}</el-tag>
         </div>
@@ -34,6 +34,9 @@
             >
               <span :class="['timeline-dot', `timeline-dot--${item.changeType || item.eventRole}`]" />
               <div class="timeline-content">
+                <div v-if="item.eventTime" class="timeline-time">
+                  {{ eventTimeLabel(item) }}：{{ formatTime(item.eventTime) }}
+                </div>
                 <div class="timeline-desc">{{ item.description }}</div>
                 <div v-if="item.eventRoleLabel" class="timeline-meta">{{ item.eventRoleLabel }}</div>
               </div>
@@ -107,6 +110,12 @@ export default {
     const formatTime = (time) => {
       if (!time) return '-'
       return time.replace('T', ' ').substring(0, 19)
+    }
+
+    const eventTimeLabel = (item) => {
+      if (item.eventTimeType === 'recover') return '恢复时间'
+      if (item.eventTimeType === 'fault') return '故障时间'
+      return '事件时间'
     }
 
     const actionTypeLabel = (actionType) => {
@@ -189,6 +198,7 @@ export default {
       changeGroups,
       hasAbnormal,
       formatTime,
+      eventTimeLabel,
       actionTypeLabel
     }
   }
@@ -296,6 +306,13 @@ export default {
   font-size: 13px;
   color: #262626;
   line-height: 1.5;
+}
+
+.timeline-time {
+  margin-bottom: 2px;
+  font-size: 12px;
+  color: #1890ff;
+  font-weight: 500;
 }
 
 .timeline-meta {

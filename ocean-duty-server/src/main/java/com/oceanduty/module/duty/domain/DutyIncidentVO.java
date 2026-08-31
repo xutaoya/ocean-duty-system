@@ -47,6 +47,8 @@ public class DutyIncidentVO {
 
     private LocalDateTime firstSeenTime;
 
+    private LocalDateTime firstFaultTime;
+
     private LocalDateTime lastSeenTime;
 
     private LocalDateTime recoveredTime;

@@ -73,6 +73,7 @@ public class DutyIncidentService {
                               Long logId,
                               LocalDateTime seenTime,
                               DutyLogSnapshotDiffUtil.SnapshotItemWithChange row) {
+        LocalDateTime faultTime = resolveFaultTime(row, seenTime);
         DutyIncidentEntity entity = DutyIncidentEntity.builder()
                 .targetType(row.getItem().getTargetType())
                 .targetId(row.getItem().getTargetId())
@@ -87,6 +88,7 @@ public class DutyIncidentService {
                 .firstLogId(logId)
                 .lastLogId(logId)
                 .firstSeenTime(seenTime)
+                .firstFaultTime(faultTime)
                 .lastSeenTime(seenTime)
                 .build();
         dutyIncidentDao.insert(entity);
@@ -115,13 +117,21 @@ public class DutyIncidentService {
         if (open == null) {
             return;
         }
+        LocalDateTime recoverTime = row.getEventTime() != null ? row.getEventTime() : seenTime;
         open.setIncidentStatus(DutyIncidentStatusConst.RECOVERED);
         open.setRecoverLogId(logId);
-        open.setRecoveredTime(seenTime);
+        open.setRecoveredTime(recoverTime);
         open.setLastLogId(logId);
         open.setLastStatus(1);
         open.setLastSeenTime(seenTime);
         dutyIncidentDao.updateById(open);
+    }
+
+    private LocalDateTime resolveFaultTime(DutyLogSnapshotDiffUtil.SnapshotItemWithChange row, LocalDateTime fallback) {
+        if (row.getEventTime() != null) {
+            return row.getEventTime();
+        }
+        return fallback;
     }
 
     private DutyIncidentEntity findOpenIncident(LocalDate dutyDate, String targetKey) {
@@ -153,6 +163,7 @@ public class DutyIncidentService {
                 .lastLogId(entity.getLastLogId())
                 .recoverLogId(entity.getRecoverLogId())
                 .firstSeenTime(entity.getFirstSeenTime())
+                .firstFaultTime(entity.getFirstFaultTime())
                 .lastSeenTime(entity.getLastSeenTime())
                 .recoveredTime(entity.getRecoveredTime())
                 .lifecycleText(DutyLogClosureFormatter.formatIncidentLifecycle(entity))

@@ -95,6 +95,8 @@ CREATE TABLE IF NOT EXISTS duty_log_item (
     previous_status TINYINT,
     state_token     VARCHAR(120),
     detail_json     TEXT,
+    event_time      DATETIME,
+    event_time_type VARCHAR(20),
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -116,6 +118,7 @@ CREATE TABLE IF NOT EXISTS duty_incident (
     last_log_id     INTEGER,
     recover_log_id  INTEGER,
     first_seen_time DATETIME     NOT NULL,
+    first_fault_time DATETIME,
     last_seen_time  DATETIME,
     recovered_time  DATETIME,
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,

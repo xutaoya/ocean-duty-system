@@ -54,6 +54,9 @@ public class DutyIncidentEntity {
 
     private LocalDateTime firstSeenTime;
 
+    /** 依据监控规则推算的故障时间 */
+    private LocalDateTime firstFaultTime;
+
     private LocalDateTime lastSeenTime;
 
     private LocalDateTime recoveredTime;

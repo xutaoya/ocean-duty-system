@@ -199,6 +199,8 @@ public class DutyLogService {
                     .status(item.getStatus())
                     .previousStatus(item.getPreviousStatus())
                     .statusLabel(item.getStatusLabel())
+                    .eventTime(item.getEventTime())
+                    .eventTimeType(item.getEventTimeType())
                     .build());
         }
         return timeline;
@@ -219,6 +221,8 @@ public class DutyLogService {
                 .changeType(entity.getChangeType())
                 .stateToken(entity.getStateToken())
                 .detailJson(entity.getDetailJson())
+                .eventTime(entity.getEventTime())
+                .eventTimeType(entity.getEventTimeType())
                 .build();
     }
 

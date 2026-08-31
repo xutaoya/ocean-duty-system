@@ -53,6 +53,12 @@ public class DutyLogItemEntity {
 
     private String detailJson;
 
+    /** 业务事件时间：故障/恢复（非按钮点击时间） */
+    private LocalDateTime eventTime;
+
+    /** fault / recover */
+    private String eventTimeType;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

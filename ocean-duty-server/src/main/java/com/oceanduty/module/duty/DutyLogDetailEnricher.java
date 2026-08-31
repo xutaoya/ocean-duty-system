@@ -136,8 +136,9 @@ public final class DutyLogDetailEnricher {
     private static DutyIncidentVO buildOpenIncident(DutyLogEntity entity,
                                                     DutyLogItemEntity item,
                                                     LocalDateTime seenTime) {
+        LocalDateTime faultTime = item.getEventTime() != null ? item.getEventTime() : seenTime;
         String lifecycle = targetLabel(item) + "："
-                + DutyLogClosureFormatter.formatTime(seenTime) + " "
+                + DutyLogClosureFormatter.formatTime(faultTime) + " "
                 + DutyLogClosureFormatter.statusLabel(item.getStatus()) + " → 进行中";
         return DutyIncidentVO.builder()
                 .targetType(item.getTargetType())
@@ -155,6 +156,7 @@ public final class DutyLogDetailEnricher {
                 .firstLogId(entity.getId())
                 .lastLogId(entity.getId())
                 .firstSeenTime(seenTime)
+                .firstFaultTime(faultTime)
                 .lastSeenTime(seenTime)
                 .lifecycleText(lifecycle)
                 .eventRole("start")
@@ -165,10 +167,11 @@ public final class DutyLogDetailEnricher {
     private static DutyIncidentVO buildRecoveredIncident(DutyLogEntity entity,
                                                          DutyLogItemEntity item,
                                                          LocalDateTime seenTime) {
+        LocalDateTime recoverTime = item.getEventTime() != null ? item.getEventTime() : seenTime;
         String lifecycle = targetLabel(item) + "："
-                + DutyLogClosureFormatter.formatTime(seenTime) + " "
+                + DutyLogClosureFormatter.formatTime(recoverTime) + " "
                 + DutyLogClosureFormatter.statusLabel(item.getPreviousStatus()) + " → "
-                + DutyLogClosureFormatter.formatTime(seenTime) + " 已恢复";
+                + DutyLogClosureFormatter.formatTime(recoverTime) + " 已恢复";
         return DutyIncidentVO.builder()
                 .targetType(item.getTargetType())
                 .targetId(item.getTargetId())
@@ -187,7 +190,7 @@ public final class DutyLogDetailEnricher {
                 .recoverLogId(entity.getId())
                 .firstSeenTime(seenTime)
                 .lastSeenTime(seenTime)
-                .recoveredTime(seenTime)
+                .recoveredTime(recoverTime)
                 .lifecycleText(lifecycle)
                 .eventRole("recover")
                 .eventRoleLabel(DutyLogClosureFormatter.eventRoleLabel("recover"))
