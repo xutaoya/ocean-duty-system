@@ -5,6 +5,7 @@
     width="760px"
     destroy-on-close
     class="duty-log-detail-dialog"
+    :fullscreen="isMobile"
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <div v-loading="loading" class="detail-body">
@@ -47,7 +48,8 @@
 
         <div class="detail-section">
           <div class="section-title">当日异常事件闭环</div>
-          <el-table v-if="incidentList.length" :data="incidentList" size="small" border>
+          <div v-if="incidentList.length" class="incident-table-wrap">
+            <el-table :data="incidentList" size="small" border>
             <el-table-column label="监控项" min-width="120" prop="targetName" />
             <el-table-column label="类型" width="70">
               <template #default="{ row }">{{ row.targetType === 'site' ? '站点' : '模块' }}</template>
@@ -61,7 +63,8 @@
                 </el-tag>
               </template>
             </el-table-column>
-          </el-table>
+            </el-table>
+          </div>
           <p v-else class="empty-hint">暂无异常事件记录</p>
         </div>
 
@@ -87,7 +90,7 @@
 </template>
 
 <script>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getDutyLogDetail } from '@/api/duty'
 
 export default {
@@ -106,6 +109,19 @@ export default {
   setup(props) {
     const loading = ref(false)
     const detail = ref(null)
+    const isMobile = ref(window.innerWidth <= 768)
+
+    const handleResize = () => {
+      isMobile.value = window.innerWidth <= 768
+    }
+
+    onMounted(() => {
+      window.addEventListener('resize', handleResize)
+    })
+
+    onUnmounted(() => {
+      window.removeEventListener('resize', handleResize)
+    })
 
     const formatTime = (time) => {
       if (!time) return '-'
@@ -193,6 +209,7 @@ export default {
     return {
       loading,
       detail,
+      isMobile,
       moduleTimeline,
       incidentList,
       changeGroups,
@@ -347,5 +364,14 @@ export default {
   font-size: 13px;
   color: #595959;
   line-height: 1.5;
+}
+
+.incident-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.incident-table-wrap :deep(.el-table) {
+  min-width: 640px;
 }
 </style>

@@ -74,7 +74,7 @@ ocean-duty:
         data-timeout-ms: ${TYPHOON_SURGE_FTP_DATA_TIMEOUT_MS:30000}
       share:
         enabled: ${TYPHOON_SURGE_SHARE_ENABLED:true}
-        mount-base: ${TYPHOON_SURGE_SHARE_MOUNT_BASE:/Volumes/upload2surge}
+        mount-base: ${TYPHOON_SURGE_SHARE_MOUNT_BASE:}
         sub-dir: ty_surge/result
   jwt:
     secret: ${JWT_SECRET:ocean-duty-default-secret-change-in-production}

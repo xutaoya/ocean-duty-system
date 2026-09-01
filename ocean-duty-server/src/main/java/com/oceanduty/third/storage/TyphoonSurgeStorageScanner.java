@@ -88,7 +88,7 @@ public class TyphoonSurgeStorageScanner {
         }
         MonitorDatasourceEntity shareDs = monitorDatasourceDao.selectById(TyphoonSurgeDatasourceIds.SHARE);
         String subDir = resolveRawShareScanDir(shareDs, shareProps);
-        if (StringUtils.hasText(shareProps.getMountBase())) {
+        if (useShareLocalMount(shareProps, subDir)) {
             Path base = Path.of(shareProps.getMountBase());
             if (StringUtils.hasText(subDir)) {
                 base = base.resolve(subDir);
@@ -96,6 +96,17 @@ public class TyphoonSurgeStorageScanner {
             return scanLatestYearLatestFolderFile(base);
         }
         return scanRawShareRemote(shareDs, subDir);
+    }
+
+    private boolean useShareLocalMount(TyphoonSurgeProperties.Share share, String subDir) {
+        if (!StringUtils.hasText(share.getMountBase())) {
+            return false;
+        }
+        Path base = Path.of(share.getMountBase());
+        if (StringUtils.hasText(subDir)) {
+            base = base.resolve(subDir);
+        }
+        return Files.isDirectory(base) && Files.isReadable(base);
     }
 
     private String resolveRawShareScanDir(MonitorDatasourceEntity shareDs, TyphoonSurgeProperties.Share shareProps) {

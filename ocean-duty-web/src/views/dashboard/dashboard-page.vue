@@ -551,38 +551,69 @@ export default {
 
 @media (max-width: 768px) {
   .dashboard-page {
-    padding: 16px;
+    padding: 12px 12px 8px;
   }
 
   .page-header {
     flex-direction: column;
-    gap: 16px;
+    align-items: stretch;
+    gap: 12px;
   }
 
   .page-header-actions {
     width: 100%;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .page-header-actions .el-button {
+    width: 100%;
+    margin: 0;
   }
 
   .page-title {
     font-size: 20px;
   }
 
+  .page-desc {
+    font-size: 13px;
+  }
+
   .stats-row {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 10px;
   }
 
   .stat-card {
-    padding: 16px;
+    padding: 14px;
   }
 
   .stat-value {
-    font-size: 22px;
+    font-size: 20px;
+  }
+
+  .section {
+    margin-bottom: 24px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-bottom: 12px;
   }
 
   .section-title {
     font-size: 15px;
+  }
+
+  .section-count {
+    font-size: 12px;
+  }
+
+  .card-col {
+    margin-bottom: 0;
   }
 }
 </style>

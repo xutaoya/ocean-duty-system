@@ -1,15 +1,27 @@
 <template>
   <el-dialog
     :model-value="modelValue"
-    width="900px"
-    top="4vh"
+    :width="isMobile ? '100%' : '900px'"
+    :top="isMobile ? '0' : '4vh'"
+    :fullscreen="isMobile"
     append-to-body
     destroy-on-close
-    :show-close="true"
-    class="alarm-detail-dialog"
+    :show-close="!isMobile"
+    :class="['alarm-detail-dialog', { 'alarm-detail-dialog--mobile': isMobile }]"
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <div v-loading="loading" class="alarm-detail-body">
+    <div v-if="isMobile" class="alarm-mobile-header">
+      <span class="alarm-mobile-title">{{ dialogSource }}</span>
+      <el-button class="alarm-mobile-close" text @click="$emit('update:modelValue', false)">
+        <el-icon :size="20"><Close /></el-icon>
+      </el-button>
+    </div>
+
+    <div
+      v-loading="loading"
+      class="alarm-detail-body"
+      :class="{ 'alarm-detail-body--mobile': isMobile }"
+    >
       <template v-if="alarm">
         <div class="alarm-hero" :style="heroStyle">
           <div class="hero-source">{{ dialogSource }}</div>
@@ -94,7 +106,7 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { getAlarmLevelTheme } from '@/lib/alarm-theme'
 import { hasHtmlTag, sanitizeAlarmHtml } from '@/lib/sanitize-html'
 
@@ -116,6 +128,20 @@ export default {
   },
   emits: ['update:modelValue'],
   setup(props) {
+    const isMobile = ref(window.innerWidth <= 768)
+
+    const handleResize = () => {
+      isMobile.value = window.innerWidth <= 768
+    }
+
+    onMounted(() => {
+      window.addEventListener('resize', handleResize)
+    })
+
+    onUnmounted(() => {
+      window.removeEventListener('resize', handleResize)
+    })
+
     const levelTheme = computed(() => getAlarmLevelTheme(props.alarm?.level))
 
     const dialogSource = computed(() => {
@@ -161,6 +187,7 @@ export default {
     }
 
     return {
+      isMobile,
       dialogSource,
       heroStyle,
       codeLabel,
@@ -349,25 +376,45 @@ export default {
 
 @media (max-width: 768px) {
   .hero-title {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .hero-meta {
     flex-direction: column;
     align-items: flex-start;
+    gap: 8px;
+  }
+
+  .hero-meta span {
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
+    line-height: 1.5;
   }
 
   .meta-sep {
     display: none;
   }
 
+  .alarm-section {
+    margin-bottom: 20px;
+  }
+
   .section-body {
-    padding: 14px 16px;
+    padding: 12px 14px;
+  }
+
+  .rich-content {
+    font-size: 14px;
+    line-height: 1.8;
   }
 
   .rich-content :deep(p) {
-    text-indent: 1.5em;
+    text-indent: 0;
+  }
+
+  .alarm-image {
+    max-height: 240px;
   }
 }
 </style>
@@ -379,5 +426,57 @@ export default {
 
 .alarm-detail-dialog .el-dialog__body {
   padding: 20px;
+}
+
+.alarm-detail-dialog--mobile .el-dialog__body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+
+.alarm-mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 12px 8px 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+}
+
+.alarm-mobile-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a2e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alarm-mobile-close {
+  flex-shrink: 0;
+  padding: 4px 8px;
+}
+
+.alarm-detail-body--mobile {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  -webkit-overflow-scrolling: touch;
+}
+
+.alarm-detail-dialog--mobile .alarm-hero {
+  margin: 0 0 20px;
+  padding: 16px;
+  border-radius: 10px;
 }
 </style>

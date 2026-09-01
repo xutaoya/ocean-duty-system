@@ -1,6 +1,6 @@
 <template>
   <!-- start 用户管理列表 -->
-  <div class="user-page">
+  <div class="user-page admin-page">
     <div class="page-header">
       <div>
         <h1 class="page-title">用户管理</h1>
@@ -41,7 +41,8 @@
     </div>
 
     <div class="table-card">
-      <el-table v-loading="loading" :data="tableData" class="user-table">
+      <div class="admin-table-wrap">
+        <el-table v-loading="loading" :data="tableData" class="user-table">
         <el-table-column prop="username" label="用户名" width="140" />
         <el-table-column prop="realName" label="姓名" width="120" />
         <el-table-column label="角色" width="120">
@@ -77,6 +78,35 @@
           </template>
         </el-table-column>
       </el-table>
+      </div>
+
+      <div v-loading="loading" class="admin-mobile-list">
+        <div v-for="row in tableData" :key="row.id" class="admin-mobile-card">
+          <div class="admin-mobile-card__header">
+            <div>
+              <div class="user-mobile-name">{{ row.username }}</div>
+              <div class="user-mobile-real">{{ row.realName || '-' }}</div>
+            </div>
+            <el-tag :type="row.status === 1 ? 'success' : 'info'" effect="plain" round>
+              {{ formatStatus(row.status) }}
+            </el-tag>
+          </div>
+          <div class="admin-mobile-card__meta">
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">角色</span>
+              <span class="admin-mobile-meta-value">{{ formatRole(row.role) }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">创建时间</span>
+              <span class="admin-mobile-meta-value">{{ formatTime(row.createTime) }}</span>
+            </div>
+          </div>
+          <div class="admin-mobile-card__actions">
+            <el-button type="primary" plain size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button type="danger" plain size="small" :disabled="row.id === 1" @click="handleDelete(row)">删除</el-button>
+          </div>
+        </div>
+      </div>
 
       <el-pagination
         v-model:current-page="queryForm.pageNum"
@@ -91,11 +121,20 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="520px"
+      :width="isMobile ? '100%' : '520px'"
+      :top="isMobile ? '0' : '8vh'"
+      :fullscreen="isMobile"
       destroy-on-close
+      :class="['admin-dialog', { 'admin-dialog--mobile': isMobile }]"
       @closed="resetForm"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        :label-position="isMobile ? 'top' : 'right'"
+        :label-width="isMobile ? 'auto' : '90px'"
+      >
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" placeholder="登录用户名" />
         </el-form-item>
@@ -133,8 +172,10 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
+        <div :class="['admin-dialog-footer', { 'admin-dialog-footer--mobile': isMobile }]">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -146,10 +187,12 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { addUser, deleteUser, queryUser, updateUser } from '@/api/user'
 import { USER_ROLE, USER_ROLE_OPTIONS, USER_STATUS, USER_STATUS_OPTIONS } from '@/constants/user'
+import { useMobileLayout } from '@/composables/use-mobile-layout'
 
 export default {
   name: 'UserList',
   setup() {
+    const { isMobile } = useMobileLayout()
     const loading = ref(false)
     const submitting = ref(false)
     const dialogVisible = ref(false)
@@ -282,6 +325,7 @@ export default {
     })
 
     return {
+      isMobile,
       loading,
       submitting,
       dialogVisible,
@@ -348,14 +392,15 @@ export default {
   justify-content: flex-end;
 }
 
-@media (max-width: 768px) {
-  .user-page {
-    padding: 12px;
-  }
+.user-mobile-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
 
-  .page-header {
-    flex-direction: column;
-    gap: 12px;
-  }
+.user-mobile-real {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #8c8c8c;
 }
 </style>

@@ -1,0 +1,184 @@
+@media (max-width: 768px) {
+  .admin-page {
+    padding: 16px !important;
+  }
+
+  .admin-page .page-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .admin-page .add-btn {
+    width: 100%;
+  }
+
+  .admin-page .page-title {
+    font-size: 20px;
+  }
+
+  .admin-page .toolbar-card {
+    padding: 16px 16px 0;
+  }
+
+  .admin-page .query-form .el-form-item {
+    margin-right: 0;
+    width: 100%;
+  }
+
+  .admin-page .query-form .el-input,
+  .admin-page .query-form .el-select,
+  .admin-page .query-form .el-date-editor {
+    width: 100% !important;
+  }
+
+  .admin-page .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .admin-table-wrap {
+    display: none;
+  }
+
+  .admin-mobile-list {
+    display: block;
+    padding-top: 4px;
+  }
+
+  .admin-page .table-header {
+    padding: 16px;
+  }
+
+  .admin-page .pagination {
+    padding: 0 16px;
+    justify-content: center;
+  }
+
+  .admin-page .pagination .el-pagination__sizes {
+    display: none;
+  }
+}
+
+@media (min-width: 769px) {
+  .admin-mobile-list {
+    display: none;
+  }
+}
+
+.admin-mobile-card {
+  margin: 0 16px 12px;
+  padding: 16px;
+  background: #fafbfc;
+  border: 1px solid #eef0f4;
+  border-radius: 12px;
+}
+
+.admin-mobile-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.admin-mobile-card__header .site-cell,
+.admin-mobile-card__header .module-cell,
+.admin-mobile-card__header .ds-cell,
+.admin-mobile-card__header .user-cell {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-mobile-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid #eef0f4;
+  border-bottom: 1px solid #eef0f4;
+}
+
+.admin-mobile-meta-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.admin-mobile-meta-label {
+  flex-shrink: 0;
+  color: #8c8c8c;
+}
+
+.admin-mobile-meta-value {
+  text-align: right;
+  color: #262626;
+  word-break: break-all;
+}
+
+.admin-mobile-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.admin-mobile-card__actions .el-button {
+  flex: 1;
+  margin: 0;
+  min-width: calc(50% - 4px);
+}
+
+.admin-dialog-footer--mobile {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.admin-dialog-footer--mobile .el-button {
+  flex: 1;
+  margin: 0;
+  height: 40px;
+}
+
+.admin-dialog--mobile .el-dialog__header {
+  padding: 16px 16px 12px;
+  margin-right: 0;
+}
+
+.admin-dialog--mobile .el-dialog__body {
+  padding: 8px 16px 20px;
+}
+
+.admin-dialog--mobile .el-dialog__footer {
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid #f0f0f0;
+}
+
+.admin-dialog--mobile .el-form-item {
+  margin-bottom: 16px;
+}
+
+.admin-dialog--mobile .el-form-item__label {
+  margin-bottom: 6px;
+  padding: 0;
+  line-height: 1.4;
+  font-weight: 500;
+  color: #595959;
+}
+
+.admin-dialog--mobile .el-form-item__content {
+  line-height: 1;
+}
+
+.admin-dialog--mobile .form-section-title {
+  margin-bottom: 12px;
+}
+
+.admin-dialog--mobile .form-section + .form-section {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #f5f5f5;
+}

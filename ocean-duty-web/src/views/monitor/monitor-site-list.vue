@@ -1,6 +1,6 @@
 <template>
   <!-- start 网站管理列表 -->
-  <div class="monitor-site-page">
+  <div class="monitor-site-page admin-page">
     <div class="page-header">
       <div>
         <h1 class="page-title">网站管理</h1>
@@ -52,12 +52,13 @@
         <span class="table-count">共 {{ total }} 个站点</span>
       </div>
 
-      <el-table
-        v-loading="loading"
-        :data="tableData"
-        class="site-table"
-        :header-cell-style="tableHeaderStyle"
-      >
+      <div class="admin-table-wrap">
+        <el-table
+          v-loading="loading"
+          :data="tableData"
+          class="site-table"
+          :header-cell-style="tableHeaderStyle"
+        >
         <el-table-column label="网站" min-width="220">
           <template #default="{ row }">
             <div class="site-cell">
@@ -149,6 +150,57 @@
           </div>
         </template>
       </el-table>
+      </div>
+
+      <div v-loading="loading" class="admin-mobile-list">
+        <div v-for="row in tableData" :key="row.id" class="admin-mobile-card">
+          <div class="admin-mobile-card__header">
+            <div class="site-cell">
+              <SiteFaviconAvatar :site-url="row.siteUrl" :name="row.siteName" size="sm" />
+              <div class="site-cell-info">
+                <span class="site-cell-name">{{ row.siteName }}</span>
+                <el-tag size="small" type="info" effect="plain" round>{{ formatSiteType(row.siteType) }}</el-tag>
+              </div>
+            </div>
+            <span :class="['status-badge', `status-badge--${statusKey(row.status)}`]">
+              <span class="status-dot" />
+              {{ formatStatus(row.status) }}
+            </span>
+          </div>
+          <div class="admin-mobile-card__meta">
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">网站地址</span>
+              <a v-if="row.siteUrl" :href="row.siteUrl" target="_blank" rel="noopener noreferrer" class="site-link admin-mobile-meta-value">{{ row.siteUrl }}</a>
+              <span v-else class="text-muted">-</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">HTTP</span>
+              <span :class="['http-code', getHttpStatusClass(row.httpStatus), 'admin-mobile-meta-value']">{{ row.httpStatus || '-' }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">响应时间</span>
+              <span :class="['response-time', responseTimeClass(row), 'admin-mobile-meta-value']">{{ row.responseTime != null ? `${row.responseTime} ms` : '-' }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">最近检测</span>
+              <span class="admin-mobile-meta-value text-muted">{{ formatTime(row.lastCheckTime) }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">探测配置</span>
+              <span class="admin-mobile-meta-value">超时 {{ row.timeoutMs }}ms / 阈值 {{ row.responseThreshold }}ms</span>
+            </div>
+          </div>
+          <div class="admin-mobile-card__actions">
+            <el-button type="primary" plain size="small" @click="handleEdit(row)"><el-icon><Edit /></el-icon>编辑</el-button>
+            <el-button type="danger" plain size="small" @click="handleDelete(row)"><el-icon><Delete /></el-icon>删除</el-button>
+          </div>
+        </div>
+        <div v-if="!loading && !tableData.length" class="empty-state">
+          <el-icon :size="48"><Monitor /></el-icon>
+          <p>暂无网站数据</p>
+          <el-button type="primary" link @click="handleAdd">立即新增</el-button>
+        </div>
+      </div>
 
       <el-pagination
         v-model:current-page="queryForm.pageNum"
@@ -165,11 +217,20 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="520px"
+      :width="isMobile ? '100%' : '520px'"
+      :top="isMobile ? '0' : '8vh'"
+      :fullscreen="isMobile"
       destroy-on-close
-      class="site-dialog"
+      :class="['admin-dialog', 'site-dialog', { 'admin-dialog--mobile': isMobile }]"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="110px" class="site-form">
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        :label-position="isMobile ? 'top' : 'right'"
+        :label-width="isMobile ? 'auto' : '110px'"
+        class="site-form"
+      >
         <el-form-item label="网站名称" prop="siteName">
           <el-input v-model="form.siteName" placeholder="请输入网站名称" />
         </el-form-item>
@@ -196,8 +257,10 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        <div :class="['admin-dialog-footer', { 'admin-dialog-footer--mobile': isMobile }]">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -211,11 +274,13 @@ import { querySite, addSite, updateSite, deleteSite } from '@/api/monitor-site'
 import { SITE_TYPE } from '@/constants/site'
 import { MONITOR_STATUS, getHttpStatusClass } from '@/constants/monitor'
 import SiteFaviconAvatar from '@/components/site-favicon-avatar.vue'
+import { useMobileLayout } from '@/composables/use-mobile-layout'
 
 export default {
   name: 'MonitorSiteList',
   components: { SiteFaviconAvatar },
   setup() {
+    const { isMobile } = useMobileLayout()
     const tableData = ref([])
     const total = ref(0)
     const loading = ref(false)
@@ -359,6 +424,7 @@ export default {
     })
 
     return {
+      isMobile,
       tableData,
       total,
       loading,
@@ -590,29 +656,5 @@ export default {
   margin-top: 4px;
   font-size: 12px;
   color: #bfbfbf;
-}
-
-@media (max-width: 768px) {
-  .monitor-site-page {
-    padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .page-title {
-    font-size: 20px;
-  }
-
-  .toolbar-card {
-    padding: 16px 16px 0;
-  }
-
-  .query-form :deep(.el-form-item) {
-    margin-right: 0;
-    width: 100%;
-  }
 }
 </style>

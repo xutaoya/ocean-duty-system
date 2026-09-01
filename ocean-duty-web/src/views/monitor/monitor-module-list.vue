@@ -1,6 +1,6 @@
 <template>
   <!-- start 监控模块管理 -->
-  <div class="monitor-module-page">
+  <div class="monitor-module-page admin-page">
     <div class="page-header">
       <div>
         <h1 class="page-title">模块管理</h1>
@@ -92,12 +92,13 @@
         <span class="table-count">共 {{ total }} 个模块</span>
       </div>
 
-      <el-table
-        v-loading="loading"
-        :data="tableData"
-        class="module-table"
-        :header-cell-style="tableHeaderStyle"
-      >
+      <div class="admin-table-wrap">
+        <el-table
+          v-loading="loading"
+          :data="tableData"
+          class="module-table"
+          :header-cell-style="tableHeaderStyle"
+        >
         <el-table-column label="模块" min-width="200">
           <template #default="{ row }">
             <div class="module-cell">
@@ -176,6 +177,78 @@
           </div>
         </template>
       </el-table>
+      </div>
+
+      <div v-loading="loading" class="admin-mobile-list">
+        <div
+          v-for="row in tableData"
+          :key="row.id"
+          class="admin-mobile-card"
+        >
+          <div class="admin-mobile-card__header">
+            <div class="module-cell">
+              <div :class="['module-icon', `module-icon--${categoryKey(row.moduleCategory)}`]">
+                <el-icon><component :is="categoryIcon(row.moduleCategory)" /></el-icon>
+              </div>
+              <div class="module-cell-info">
+                <span class="module-cell-name">{{ row.moduleName }}</span>
+                <div class="module-cell-tags">
+                  <el-tag size="small" effect="plain" round>{{ row.moduleCategoryName }}</el-tag>
+                  <el-tag v-if="row.moduleGroup" size="small" type="info" effect="plain" round>
+                    {{ row.moduleGroup }}
+                  </el-tag>
+                </div>
+              </div>
+            </div>
+            <span
+              v-if="shouldShowModuleStatus(row)"
+              :class="['status-badge', `status-badge--${statusKey(row.status)}`]"
+            >
+              <span class="status-dot" />
+              {{ formatStatus(row.status) }}
+            </span>
+          </div>
+
+          <div class="admin-mobile-card__meta">
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">检测方式</span>
+              <span class="admin-mobile-meta-value">{{ formatCheckType(row.checkType) }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">最新数据</span>
+              <span class="admin-mobile-meta-value">
+                <span v-if="row.alarmTitle" class="alarm-preview">{{ row.alarmTitle }}</span>
+                <span v-else class="text-muted">{{ formatTime(row.updateTime) }}</span>
+              </span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">更新周期</span>
+              <span class="admin-mobile-meta-value">每天 {{ row.expectedTime || '-' }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">最后更新</span>
+              <span class="admin-mobile-meta-value text-muted">{{ formatTime(row.updateTime) }}</span>
+            </div>
+          </div>
+
+          <div class="admin-mobile-card__actions">
+            <el-button type="primary" plain size="small" @click="handleEdit(row)">
+              <el-icon><Edit /></el-icon>
+              编辑
+            </el-button>
+            <el-button type="danger" plain size="small" @click="handleDelete(row)">
+              <el-icon><Delete /></el-icon>
+              删除
+            </el-button>
+          </div>
+        </div>
+
+        <div v-if="!loading && !tableData.length" class="empty-state">
+          <el-icon :size="48"><Grid /></el-icon>
+          <p>暂无模块数据</p>
+          <el-button type="primary" link @click="handleAdd">立即新增</el-button>
+        </div>
+      </div>
 
       <el-pagination
         v-model:current-page="queryForm.pageNum"
@@ -189,8 +262,23 @@
       />
     </div>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="640px" destroy-on-close class="module-dialog">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="110px" class="module-form">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      :width="isMobile ? '100%' : '640px'"
+      :top="isMobile ? '0' : '8vh'"
+      :fullscreen="isMobile"
+      destroy-on-close
+      :class="['admin-dialog', 'module-dialog', { 'admin-dialog--mobile': isMobile }]"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        :label-position="isMobile ? 'top' : 'right'"
+        :label-width="isMobile ? 'auto' : '110px'"
+        class="module-form"
+      >
         <div class="form-section">
           <div class="form-section-title">基本信息</div>
           <el-form-item label="模块分类" prop="moduleCategory">
@@ -287,8 +375,10 @@
         </div>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        <div :class="['admin-dialog-footer', { 'admin-dialog-footer--mobile': isMobile }]">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -304,6 +394,7 @@ import { listDatasource } from '@/api/monitor-datasource'
 import { MODULE_CATEGORY, MONITOR_STATUS } from '@/constants/monitor'
 import { shouldShowModuleStatus } from '@/lib/monitor-effective-status'
 import { MODULE_CHECK_TYPE, MODULE_CATEGORY_OPTIONS } from '@/constants/module'
+import { useMobileLayout } from '@/composables/use-mobile-layout'
 
 export default {
   name: 'MonitorModuleList',
@@ -318,6 +409,7 @@ export default {
     const submitting = ref(false)
     const formRef = ref(null)
     const paramForm = reactive({})
+    const { isMobile } = useMobileLayout()
 
     const categoryOptions = MODULE_CATEGORY_OPTIONS
     const checkTypeOptions = Object.values(MODULE_CHECK_TYPE)
@@ -537,6 +629,7 @@ export default {
     })
 
     return {
+      isMobile,
       loading,
       tableData,
       total,
@@ -817,26 +910,6 @@ export default {
 @media (max-width: 1200px) {
   .stats-row {
     grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .monitor-module-page {
-    padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .page-title {
-    font-size: 20px;
-  }
-
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
   }
 }
 </style>

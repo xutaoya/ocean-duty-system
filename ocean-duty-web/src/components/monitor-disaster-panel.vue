@@ -634,7 +634,7 @@ export default {
 }
 
 .disaster-row--surge {
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .disaster-row--surge .row-body {
@@ -671,12 +671,18 @@ export default {
 }
 
 .row-grid-detail--surge {
-  flex: 1 1 480px;
-  min-width: 480px;
+  flex: 1 1 auto;
+  min-width: 0;
   max-width: 100%;
   margin-left: auto;
   padding: 12px 14px;
-  overflow-x: auto;
+}
+
+@media (min-width: 1024px) {
+  .row-grid-detail--surge {
+    flex: 1 1 480px;
+    min-width: 480px;
+  }
 }
 
 .row-grid-detail:hover {
@@ -1029,40 +1035,79 @@ export default {
 }
 
 @media (max-width: 768px) {
+  .disaster-panel {
+    border-radius: 10px;
+  }
+
+  .row-body {
+    padding: 14px 12px;
+  }
+
+  .disaster-row--grid .row-side,
+  .disaster-row--surge .row-side {
+    display: none;
+  }
+
+  .disaster-row--grid .grid-update-headline,
+  .disaster-row--surge .grid-update-headline {
+    display: none;
+  }
+
   .disaster-row--grid .row-primary,
   .disaster-row--surge .row-primary {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .disaster-row--surge .row-type,
+  .disaster-row--grid .row-type {
+    width: auto;
   }
 
   .row-grid-detail,
   .row-grid-detail--surge {
     margin-left: 0;
-    margin-top: 10px;
+    margin-top: 0;
     min-width: 0;
     flex: 1 1 auto;
+    padding: 10px 12px;
   }
 
   .grid-detail-board,
   .grid-detail-board--surge {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
+  }
+
+  .grid-detail-board--surge .grid-detail-group {
+    padding: 0;
   }
 
   .grid-detail-board--surge .grid-detail-group + .grid-detail-group {
     border-left: none;
-    padding-top: 14px;
+    padding-top: 12px;
     border-top: 1px solid #e8edf3;
   }
 
   .grid-detail-board--surge .grid-metric {
     flex-direction: row;
     align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .grid-detail-board--surge .grid-metric-label {
+    font-size: 11px;
   }
 
   .grid-detail-board--surge .grid-metric-value {
+    font-size: 11px;
     white-space: normal;
+    text-align: right;
+    word-break: break-all;
   }
 
   .grid-detail-group {
@@ -1071,7 +1116,7 @@ export default {
 
   .grid-detail-group + .grid-detail-group {
     border-left: none;
-    padding-top: 14px;
+    padding-top: 12px;
     border-top: 1px solid #e8edf3;
   }
 
@@ -1088,12 +1133,49 @@ export default {
     flex-direction: column;
     align-items: flex-end;
     justify-content: center;
-    padding-left: 12px;
+    padding: 12px 12px 12px 0;
   }
 
   .row-secondary {
     flex-direction: column;
     gap: 4px;
+    font-size: 12px;
+  }
+
+  .type-name {
+    font-size: 15px;
+  }
+
+  .grid-detail-remark {
+    font-size: 11px;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1023px) {
+  .grid-detail-board--surge {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 0;
+  }
+
+  .grid-detail-board--surge .grid-detail-group:nth-child(odd) {
+    padding-right: 12px;
+  }
+
+  .grid-detail-board--surge .grid-detail-group:nth-child(even) {
+    padding-left: 12px;
+    border-left: 1px solid #e8edf3;
+  }
+
+  .grid-detail-board--surge .grid-detail-group:nth-child(n + 3) {
+    padding-top: 12px;
+    border-top: 1px solid #e8edf3;
+  }
+
+  .row-grid-detail--surge {
+    min-width: 0;
   }
 }
 </style>

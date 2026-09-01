@@ -1,6 +1,6 @@
 <template>
   <!-- start 值班日志列表 -->
-  <div class="duty-log-page">
+  <div class="duty-log-page admin-page">
     <div class="page-header">
       <div>
         <h1 class="page-title">值班日志</h1>
@@ -78,12 +78,13 @@
         <span class="table-count">共 {{ total }} 条记录</span>
       </div>
 
-      <el-table
-        v-loading="loading"
-        :data="tableData"
-        class="log-table"
-        :header-cell-style="tableHeaderStyle"
-      >
+      <div class="admin-table-wrap">
+        <el-table
+          v-loading="loading"
+          :data="tableData"
+          class="log-table"
+          :header-cell-style="tableHeaderStyle"
+        >
         <el-table-column label="值班信息" width="200">
           <template #default="{ row }">
             <div class="user-cell">
@@ -185,6 +186,58 @@
           </div>
         </template>
       </el-table>
+      </div>
+
+      <div v-loading="loading" class="admin-mobile-list">
+        <div v-for="row in tableData" :key="row.id" class="admin-mobile-card">
+          <div class="admin-mobile-card__header">
+            <div class="user-cell">
+              <div class="user-avatar">{{ userInitial(row.userName) }}</div>
+              <div>
+                <div class="user-name">{{ row.userName || '-' }}</div>
+                <div class="duty-time"><el-icon><Clock /></el-icon>{{ formatTime(row.dutyTime) }}</div>
+              </div>
+            </div>
+            <span :class="['issue-badge', hasProblem(row) ? 'issue-badge--yes' : 'issue-badge--no']">{{ issueLabel(row) }}</span>
+          </div>
+          <div class="admin-mobile-card__meta">
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">类型</span>
+              <span class="admin-mobile-meta-value">{{ actionTypeLabel(row) }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">网站状态</span>
+              <span class="admin-mobile-meta-value">{{ row.siteStatus || '未填写' }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">模块状态</span>
+              <span class="admin-mobile-meta-value">{{ row.moduleStatus || '未填写' }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">异常闭环</span>
+              <span class="admin-mobile-meta-value">{{ row.closureSummary || (row.logSource === 'snapshot' ? '全部正常' : '-') }}</span>
+            </div>
+            <div v-if="row.problem" class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">故障原因</span>
+              <span class="admin-mobile-meta-value">{{ row.problem }}</span>
+            </div>
+            <div v-if="row.recoverTime" class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">恢复时间</span>
+              <span class="admin-mobile-meta-value recover-time">{{ formatTime(row.recoverTime) }}</span>
+            </div>
+          </div>
+          <div class="admin-mobile-card__actions">
+            <el-button type="primary" plain size="small" @click="handleView(row)"><el-icon><View /></el-icon>详情</el-button>
+            <el-button type="primary" plain size="small" @click="handleEdit(row)"><el-icon><Edit /></el-icon>编辑</el-button>
+            <el-button type="danger" plain size="small" @click="handleDelete(row)"><el-icon><Delete /></el-icon>删除</el-button>
+          </div>
+        </div>
+        <div v-if="!loading && !tableData.length" class="empty-state">
+          <el-icon :size="48"><Document /></el-icon>
+          <p>暂无值班日志</p>
+          <el-button type="primary" link @click="handleAdd">立即填写</el-button>
+        </div>
+      </div>
 
       <el-pagination
         v-model:current-page="queryForm.pageNum"
@@ -201,12 +254,21 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="600px"
+      :width="isMobile ? '100%' : '600px'"
+      :top="isMobile ? '0' : '8vh'"
+      :fullscreen="isMobile"
       destroy-on-close
-      class="log-dialog"
+      :class="['admin-dialog', 'log-dialog', { 'admin-dialog--mobile': isMobile }]"
       @closed="resetForm"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px" class="log-form">
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        :label-position="isMobile ? 'top' : 'right'"
+        :label-width="isMobile ? 'auto' : '90px'"
+        class="log-form"
+      >
         <div class="form-section">
           <div class="form-section-title">基本信息</div>
           <el-form-item label="值班时间" prop="dutyTime">
@@ -271,8 +333,10 @@
         </div>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        <div :class="['admin-dialog-footer', { 'admin-dialog-footer--mobile': isMobile }]">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -286,11 +350,13 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { addDutyLog, deleteDutyLog, queryDutyLog, updateDutyLog } from '@/api/duty'
 import DutyLogDetailDialog from '@/components/duty-log-detail-dialog.vue'
+import { useMobileLayout } from '@/composables/use-mobile-layout'
 
 export default {
   name: 'DutyLogList',
   components: { DutyLogDetailDialog },
   setup() {
+    const { isMobile } = useMobileLayout()
     const loading = ref(false)
     const submitting = ref(false)
     const dialogVisible = ref(false)
@@ -487,6 +553,7 @@ export default {
     })
 
     return {
+      isMobile,
       loading,
       submitting,
       dialogVisible,
@@ -796,25 +863,6 @@ export default {
 @media (max-width: 960px) {
   .stats-row {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .duty-log-page {
-    padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .page-title {
-    font-size: 20px;
-  }
-
-  .toolbar-card {
-    padding: 16px 16px 0;
   }
 }
 </style>

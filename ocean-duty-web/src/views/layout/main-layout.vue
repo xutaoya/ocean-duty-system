@@ -37,11 +37,19 @@
       </el-menu>
     </el-aside>
 
-    <el-container>
-      <el-header class="main-header">
-        <div class="header-left">
-          <span class="page-title">{{ currentTitle }}</span>
-        </div>
+    <el-container class="main-body">
+    <el-header class="main-header">
+      <div class="header-left">
+        <el-button
+          v-if="isMobile"
+          class="header-menu-btn"
+          text
+          @click="drawerVisible = true"
+        >
+          <el-icon :size="22"><Menu /></el-icon>
+        </el-button>
+        <span class="page-title">{{ currentTitle }}</span>
+      </div>
         <div class="header-right">
           <span class="user-name">{{ userStore.realName || userStore.username }}</span>
           <el-button type="danger" link @click="handleLogout">退出</el-button>
@@ -51,6 +59,33 @@
         <RouterView />
       </el-main>
     </el-container>
+
+    <el-drawer
+      v-model="drawerVisible"
+      direction="ltr"
+      size="260px"
+      :with-header="false"
+      class="mobile-nav-drawer"
+    >
+      <div class="mobile-drawer-logo">海洋预报值班监控</div>
+      <el-menu
+        :default-active="activeMenu"
+        router
+        background-color="#001529"
+        text-color="#ffffffa6"
+        active-text-color="#ffffff"
+        @select="drawerVisible = false"
+      >
+        <el-menu-item
+          v-for="item in navItems"
+          :key="item.path"
+          :index="item.path"
+        >
+          <el-icon><component :is="item.icon" /></el-icon>
+          <span>{{ item.label }}</span>
+        </el-menu-item>
+      </el-menu>
+    </el-drawer>
   </el-container>
   <!-- end 主布局 -->
 </template>
@@ -68,14 +103,28 @@ export default {
     const router = useRouter()
     const userStore = useUserStore()
     const isMobile = ref(window.innerWidth <= 768)
+    const drawerVisible = ref(false)
 
     const activeMenu = computed(() => route.path)
     const currentTitle = computed(() => route.meta.title || '')
     const isAdmin = computed(() => isAdminRole(userStore.role))
 
-    /**
-     * 监听窗口大小变化
-     */
+    const navItems = computed(() => {
+      const items = [
+        { path: '/dashboard', label: '监控首页', icon: 'Monitor' },
+        { path: '/duty/duty-log-list', label: '值班日志', icon: 'Document' }
+      ]
+      if (isAdmin.value) {
+        items.push(
+          { path: '/monitor/monitor-site-list', label: '网站管理', icon: 'Setting' },
+          { path: '/monitor/monitor-module-list', label: '模块管理', icon: 'Grid' },
+          { path: '/monitor/monitor-datasource-list', label: '数据源管理', icon: 'Coin' },
+          { path: '/user/user-list', label: '用户管理', icon: 'User' }
+        )
+      }
+      return items
+    })
+
     const handleResize = () => {
       isMobile.value = window.innerWidth <= 768
     }
@@ -100,8 +149,10 @@ export default {
       userStore,
       isMobile,
       isAdmin,
+      drawerVisible,
       activeMenu,
       currentTitle,
+      navItems,
       handleLogout
     }
   }
@@ -141,6 +192,19 @@ export default {
   font-weight: 600;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.header-menu-btn {
+  flex-shrink: 0;
+  padding: 4px;
+  margin-left: -8px;
+}
+
 .header-right {
   display: flex;
   align-items: center;
@@ -155,6 +219,26 @@ export default {
   padding: 0;
 }
 
+.main-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-drawer-logo {
+  height: 56px;
+  line-height: 56px;
+  text-align: center;
+  color: #fff;
+  font-size: 15px;
+  font-weight: bold;
+  background-color: #001529;
+}
+
+:deep(.mobile-nav-drawer .el-drawer__body) {
+  padding: 0;
+  background-color: #001529;
+}
+
 @media (max-width: 768px) {
   .main-aside {
     display: none;
@@ -162,6 +246,14 @@ export default {
 
   .page-title {
     font-size: 16px;
+  }
+
+  .user-name {
+    max-width: 96px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
   }
 }
 </style>

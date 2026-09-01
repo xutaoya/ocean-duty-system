@@ -1,6 +1,6 @@
 <template>
   <!-- start 数据源管理 -->
-  <div class="datasource-page">
+  <div class="datasource-page admin-page">
     <div class="page-header">
       <div>
         <h1 class="page-title">数据源管理</h1>
@@ -66,12 +66,13 @@
         <span class="table-count">共 {{ total }} 个数据源</span>
       </div>
 
-      <el-table
-        v-loading="loading"
-        :data="tableData"
-        class="ds-table"
-        :header-cell-style="tableHeaderStyle"
-      >
+      <div class="admin-table-wrap">
+        <el-table
+          v-loading="loading"
+          :data="tableData"
+          class="ds-table"
+          :header-cell-style="tableHeaderStyle"
+        >
         <el-table-column label="数据源" min-width="200">
           <template #default="{ row }">
             <div class="ds-cell">
@@ -143,6 +144,53 @@
           </div>
         </template>
       </el-table>
+      </div>
+
+      <div v-loading="loading" class="admin-mobile-list">
+        <div v-for="row in tableData" :key="row.id" class="admin-mobile-card">
+          <div class="admin-mobile-card__header">
+            <div class="ds-cell">
+              <div class="ds-icon"><el-icon><Coin /></el-icon></div>
+              <div>
+                <span class="ds-name">{{ row.dsName }}</span>
+                <el-tag size="small" type="info" effect="plain" round>{{ row.dsType || 'mysql' }}</el-tag>
+              </div>
+            </div>
+            <span :class="['status-badge', row.status === 1 ? 'status-badge--active' : 'status-badge--disabled']">
+              <span class="status-dot" />
+              {{ row.status === 1 ? '正常' : '禁用' }}
+            </span>
+          </div>
+          <div class="admin-mobile-card__meta">
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">连接地址</span>
+              <span class="admin-mobile-meta-value">{{ row.host }}:{{ row.port }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">数据库</span>
+              <span class="admin-mobile-meta-value">{{ row.databaseName }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">数据表</span>
+              <span class="admin-mobile-meta-value">{{ row.tableName || '-' }}</span>
+            </div>
+            <div class="admin-mobile-meta-row">
+              <span class="admin-mobile-meta-label">用户名</span>
+              <span class="admin-mobile-meta-value">{{ row.username }}</span>
+            </div>
+          </div>
+          <div class="admin-mobile-card__actions">
+            <el-button type="success" plain size="small" :loading="testingId === row.id" @click="handleTest(row)"><el-icon><Connection /></el-icon>测试</el-button>
+            <el-button type="primary" plain size="small" @click="handleEdit(row)"><el-icon><Edit /></el-icon>编辑</el-button>
+            <el-button type="danger" plain size="small" @click="handleDelete(row)"><el-icon><Delete /></el-icon>删除</el-button>
+          </div>
+        </div>
+        <div v-if="!loading && !tableData.length" class="empty-state">
+          <el-icon :size="48"><Coin /></el-icon>
+          <p>暂无数据源</p>
+          <el-button type="primary" link @click="handleAdd">立即新增</el-button>
+        </div>
+      </div>
 
       <el-pagination
         v-model:current-page="queryForm.pageNum"
@@ -159,12 +207,21 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="560px"
+      :width="isMobile ? '100%' : '560px'"
+      :top="isMobile ? '0' : '8vh'"
+      :fullscreen="isMobile"
       destroy-on-close
-      class="ds-dialog"
+      :class="['admin-dialog', 'ds-dialog', { 'admin-dialog--mobile': isMobile }]"
       @closed="resetForm"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px" class="ds-form">
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        :label-position="isMobile ? 'top' : 'right'"
+        :label-width="isMobile ? 'auto' : '90px'"
+        class="ds-form"
+      >
         <div class="form-section">
           <div class="form-section-title">连接信息</div>
           <el-form-item label="名称" prop="dsName">
@@ -212,8 +269,10 @@
         </div>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        <div :class="['admin-dialog-footer', { 'admin-dialog-footer--mobile': isMobile }]">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -230,10 +289,12 @@ import {
   testDatasource,
   updateDatasource
 } from '@/api/monitor-datasource'
+import { useMobileLayout } from '@/composables/use-mobile-layout'
 
 export default {
   name: 'MonitorDatasourceList',
   setup() {
+    const { isMobile } = useMobileLayout()
     const loading = ref(false)
     const submitting = ref(false)
     const testingId = ref(null)
@@ -381,6 +442,7 @@ export default {
     onMounted(handleQuery)
 
     return {
+      isMobile,
       loading,
       submitting,
       testingId,
@@ -642,21 +704,6 @@ export default {
 @media (max-width: 960px) {
   .stats-row {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .datasource-page {
-    padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .page-title {
-    font-size: 20px;
   }
 }
 </style>
