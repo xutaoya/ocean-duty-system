@@ -17,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -78,6 +79,76 @@ public class CmsForecastAlarmQueryClient {
         } catch (SQLException e) {
             log.error("查询 CMS 灾害预警详情失败: dsId={}, type={}, msg={}",
                     datasource.getId(), alarmType, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 查询指定类型在指定日期的最新警报（用于恢复时间推算）
+     */
+    public CmsForecastAlarmRecord fetchLatestOnDate(MonitorDatasourceEntity datasource,
+                                                    String alarmType,
+                                                    LocalDate date) {
+        if (datasource == null || !StringUtils.hasText(alarmType) || date == null) {
+            return null;
+        }
+        validateIdentifier(datasource.getTableName());
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.plusDays(1).atStartOfDay();
+        String sql = "SELECT " + DETAIL_COLUMNS + " FROM `" + datasource.getTableName()
+                + "` WHERE type = ? AND del_flag = '0' AND alarm_date >= ? AND alarm_date < ?"
+                + " ORDER BY alarm_date DESC LIMIT 1";
+        try (Connection connection = openConnection(datasource);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, alarmType);
+            statement.setTimestamp(2, Timestamp.valueOf(start));
+            statement.setTimestamp(3, Timestamp.valueOf(end));
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return null;
+                }
+                return mapRecord(resultSet);
+            }
+        } catch (SQLException e) {
+            log.error("按日期查询 CMS 灾害预警失败: dsId={}, type={}, date={}, msg={}",
+                    datasource.getId(), alarmType, date, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 查询表在指定日期的最新更新时间
+     */
+    public CmsTablePublishRecord fetchLatestUpdateOnDate(MonitorDatasourceEntity datasource,
+                                                         String table,
+                                                         String timeField,
+                                                         LocalDate date) {
+        if (datasource == null || !StringUtils.hasText(table) || !StringUtils.hasText(timeField) || date == null) {
+            return null;
+        }
+        validateIdentifier(table);
+        validateIdentifier(timeField);
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.plusDays(1).atStartOfDay();
+        String sql = "SELECT `" + timeField + "` AS publish_time FROM `" + table + "`"
+                + " WHERE `" + timeField + "` >= ? AND `" + timeField + "` < ?"
+                + " ORDER BY `" + timeField + "` DESC LIMIT 1";
+        try (Connection connection = openConnection(datasource);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setTimestamp(1, Timestamp.valueOf(start));
+            statement.setTimestamp(2, Timestamp.valueOf(end));
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return null;
+                }
+                Timestamp publishTime = resultSet.getTimestamp("publish_time");
+                return CmsTablePublishRecord.builder()
+                        .publishTime(publishTime == null ? null : publishTime.toLocalDateTime())
+                        .build();
+            }
+        } catch (SQLException e) {
+            log.error("按日期查询表更新时间失败: dsId={}, table={}, date={}, msg={}",
+                    datasource.getId(), table, date, e.getMessage());
             return null;
         }
     }

@@ -18,6 +18,7 @@ import com.oceanduty.module.duty.domain.DutyLogItemVO;
 import com.oceanduty.module.duty.domain.DutyLogQueryDTO;
 import com.oceanduty.module.duty.domain.DutyLogTimelineVO;
 import com.oceanduty.module.duty.domain.DutyLogVO;
+import com.oceanduty.module.monitor.MonitorQueryService;
 import com.oceanduty.util.RequestUserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDate;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +39,8 @@ public class DutyLogService {
     private final DutyLogDao dutyLogDao;
     private final DutyLogItemDao dutyLogItemDao;
     private final DutyIncidentService dutyIncidentService;
+    private final DutyLogEventTimeService dutyLogEventTimeService;
+    private final MonitorQueryService monitorQueryService;
 
     public ResponseDTO<PageResultVO<DutyLogVO>> queryDutyLog(DutyLogQueryDTO queryDTO) {
         LambdaQueryWrapper<DutyLogEntity> wrapper = new LambdaQueryWrapper<>();
@@ -76,6 +80,12 @@ public class DutyLogService {
                         .orderByAsc(DutyLogItemEntity::getId));
         DutyLogDetailEnricher.normalizeItems(itemEntities);
 
+        LocalDate dutyDate = entity.getDutyDate() != null
+                ? entity.getDutyDate()
+                : entity.getDutyTime().toLocalDate();
+        dutyLogEventTimeService.backfillItemEventTimes(
+                itemEntities, monitorQueryService.getDashboard(), dutyDate);
+
         DutyLogChangeSummaryVO changeSummary = dutyIncidentService.readJson(
                 entity.getChangeSummary(), DutyLogChangeSummaryVO.class);
         if (changeSummary == null && !itemEntities.isEmpty()) {
@@ -84,6 +94,7 @@ public class DutyLogService {
 
         List<DutyIncidentVO> incidents = DutyLogDetailEnricher.enrichIncidents(
                 entity, itemEntities, dutyIncidentService.listByLogId(id));
+        dutyLogEventTimeService.patchIncidentsWithItemEventTimes(incidents, itemEntities, id);
         String closureSummary = DutyLogDetailEnricher.resolveClosureSummary(entity, changeSummary);
 
         List<DutyLogItemVO> items = itemEntities.stream()

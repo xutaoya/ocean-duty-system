@@ -443,6 +443,77 @@ public class MonitorModuleCheckService {
         return datasource == null ? null : datasource.getTableName();
     }
 
+    /**
+     * 查询模块数据源最新更新时间（实时查库，不依赖缓存）
+     */
+    public LocalDateTime fetchLatestDataUpdateTime(Long moduleId) {
+        MonitorModuleEntity module = monitorModuleDao.selectById(moduleId);
+        if (module == null) {
+            return null;
+        }
+        return fetchDataUpdateTime(module, null);
+    }
+
+    /**
+     * 查询模块在指定日期的数据源更新时间（用于历史日志恢复时间回填）
+     */
+    public LocalDateTime fetchDataUpdateTimeOnDate(Long moduleId, LocalDate dutyDate) {
+        MonitorModuleEntity module = monitorModuleDao.selectById(moduleId);
+        if (module == null || dutyDate == null) {
+            return null;
+        }
+        return fetchDataUpdateTime(module, dutyDate);
+    }
+
+    private LocalDateTime fetchDataUpdateTime(MonitorModuleEntity module, LocalDate dutyDate) {
+        Map<String, String> params = parseCheckParam(module.getCheckParam());
+        Map<Long, MonitorDatasourceEntity> datasourceMap = loadDatasourceMap(List.of(module));
+        String datasourceIssue = resolveDatasourceIssue(module.getCheckType(), params, datasourceMap);
+        if (datasourceIssue != null) {
+            return null;
+        }
+        if (dutyDate != null) {
+            return fetchDataUpdateTimeOnDate(module.getCheckType(), params, datasourceMap, dutyDate);
+        }
+        return fetchCheckResult(module.getCheckType(), params, datasourceMap).updateTime();
+    }
+
+    private LocalDateTime fetchDataUpdateTimeOnDate(String checkType,
+                                                    Map<String, String> params,
+                                                    Map<Long, MonitorDatasourceEntity> datasourceMap,
+                                                    LocalDate dutyDate) {
+        if (ModuleCheckTypeConst.CMS_FORECAST_ALARM.equals(checkType)) {
+            Long datasourceId = parseLong(params.get("datasourceId"));
+            String alarmType = params.get("type");
+            if (datasourceId == null || !StringUtils.hasText(alarmType)) {
+                return null;
+            }
+            MonitorDatasourceEntity datasource = resolveDatasource(datasourceId, datasourceMap);
+            CmsForecastAlarmRecord record = cmsForecastAlarmQueryClient.fetchLatestOnDate(
+                    datasource, alarmType, dutyDate);
+            return record == null ? null : record.getAlarmDate();
+        }
+        if (ModuleCheckTypeConst.CMS_TABLE_PUBLISH.equals(checkType)
+                || ModuleCheckTypeConst.CMS_GRID_UPDATE.equals(checkType)) {
+            Long datasourceId = parseLong(params.get("datasourceId"));
+            String timeField = params.getOrDefault("timeField",
+                    ModuleCheckTypeConst.CMS_GRID_UPDATE.equals(checkType) ? "update_date" : null);
+            if (datasourceId == null || !StringUtils.hasText(timeField)) {
+                return null;
+            }
+            MonitorDatasourceEntity datasource = resolveDatasource(datasourceId, datasourceMap);
+            String table = resolveTableName(params, datasource);
+            CmsTablePublishRecord record = cmsForecastAlarmQueryClient.fetchLatestUpdateOnDate(
+                    datasource, table, timeField, dutyDate);
+            return record == null ? null : record.getPublishTime();
+        }
+        LocalDateTime latest = fetchCheckResult(checkType, params, datasourceMap).updateTime();
+        if (latest != null && latest.toLocalDate().equals(dutyDate)) {
+            return latest;
+        }
+        return null;
+    }
+
     private record ModuleCheckResult(LocalDateTime updateTime, String alarmTitle, String alarmCode, String alarmLevel) {
         private static ModuleCheckResult empty() {
             return new ModuleCheckResult(null, null, null, null);

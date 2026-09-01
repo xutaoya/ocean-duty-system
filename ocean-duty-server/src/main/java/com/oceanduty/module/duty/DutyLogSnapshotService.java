@@ -57,6 +57,7 @@ public class DutyLogSnapshotService {
     private final DutyLogDao dutyLogDao;
     private final DutyLogItemDao dutyLogItemDao;
     private final DutyIncidentService dutyIncidentService;
+    private final DutyLogEventTimeService dutyLogEventTimeService;
     private final MonitorQueryService monitorQueryService;
     private final SysUserDao sysUserDao;
     private final ObjectMapper objectMapper;
@@ -93,7 +94,7 @@ public class DutyLogSnapshotService {
         LocalDateTime now = LocalDateTime.now();
 
         DutyLogSnapshotDiffUtil.DiffResult diff = DutyLogSnapshotDiffUtil.diff(snapshot.getItems(), previousAbnormalItems);
-        DutyLogEventTimeEnricher.enrich(diff, dashboard, previousAbnormalItems, now);
+        dutyLogEventTimeService.enrichSnapshotDiff(diff, dashboard, previousAbnormalItems, today, now);
 
         DutyLogEntity entity = DutyLogEntity.builder()
                 .userId(requestUser.getUserId())
