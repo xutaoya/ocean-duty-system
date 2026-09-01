@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.oceanduty.module.monitor.domain.CmsForecastAlarmDetailVO;
 import com.oceanduty.module.monitor.domain.SmartGridDetailVO;
+import com.oceanduty.module.monitor.domain.TyphoonSurgeDetailVO;
 
 import java.util.List;
 
@@ -31,6 +32,7 @@ public class MonitorController {
     private final MonitorModuleCheckService monitorModuleCheckService;
     private final MonitorModuleAlarmService monitorModuleAlarmService;
     private final SmartGridDetailService smartGridDetailService;
+    private final TyphoonSurgeDetailService typhoonSurgeDetailService;
 
     @Value("${ocean-duty.monitor.module-check-enabled:false}")
     private boolean moduleCheckEnabled;
@@ -57,6 +59,12 @@ public class MonitorController {
     @GetMapping("/monitor/module/smart-grid/{id}")
     public ResponseDTO<SmartGridDetailVO> getSmartGridDetail(@PathVariable Long id) {
         return ResponseDTO.succ(smartGridDetailService.getDetailByModuleId(id));
+    }
+
+    @Operation(summary = "查询台风风暴潮四步数据链路 @author ocean-duty")
+    @GetMapping("/monitor/module/typhoon-surge/{id}")
+    public ResponseDTO<TyphoonSurgeDetailVO> getTyphoonSurgeDetail(@PathVariable Long id) {
+        return ResponseDTO.succ(typhoonSurgeDetailService.getDetailByModuleId(id));
     }
 
     @Operation(summary = "查询模块最新 CMS 警报详情 @author ocean-duty")

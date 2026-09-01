@@ -57,8 +57,20 @@ public class MonitorModuleSeedRunner implements CommandLineRunner {
                 gridModule(32L, 1L, "海浪", 6L, "wave"),
                 gridModule(33L, 1L, "海流", 7L, "current"),
                 gridModule(34L, 1L, "海温", 8L, "sst"),
-                gridModule(35L, 1L, "风暴增水", 9L, "storm_tide")
+                gridModule(35L, 1L, "风暴增水", 9L, "storm_tide"),
+
+                typhoonSurgeModule(36L, 1L, "台风风暴潮", "https://www.oceanguide.org.cn/IndexHome", 10L, 11L, "08:00")
         );
+    }
+
+    private MonitorModuleEntity typhoonSurgeModule(Long id, Long siteId, String name, String url,
+                                                   Long mysqlDatasourceId, Long pgDatasourceId, String expectedTime) {
+        return module(id, siteId, name, url,
+                ModuleCategoryConst.FORECAST_SERVICE, "中心网站-风暴潮预报",
+                ModuleCheckTypeConst.TYPHOON_STORM_SURGE_CHAIN,
+                "{\"mysqlDatasourceId\":\"" + mysqlDatasourceId + "\",\"pgDatasourceId\":\""
+                        + pgDatasourceId + "\",\"ftpDatasourceId\":\"12\",\"shareDatasourceId\":\"13\"}",
+                expectedTime);
     }
 
     private MonitorModuleEntity gridModule(Long id, Long siteId, String name, Long datasourceId, String windowPreset) {

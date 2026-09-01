@@ -46,6 +46,10 @@ export const getSmartGridDetail = (id) => {
   return getAxios(`/monitor/module/smart-grid/${id}`)
 }
 
+export const getTyphoonSurgeDetail = (id) => {
+  return getAxios(`/monitor/module/typhoon-surge/${id}`)
+}
+
 /**
  * 查询模块最新 CMS 警报详情
  */

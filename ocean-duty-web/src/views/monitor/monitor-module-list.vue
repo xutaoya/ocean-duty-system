@@ -138,10 +138,14 @@
 
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
-            <span :class="['status-badge', `status-badge--${statusKey(row.status)}`]">
+            <span
+              v-if="shouldShowModuleStatus(row)"
+              :class="['status-badge', `status-badge--${statusKey(row.status)}`]"
+            >
               <span class="status-dot" />
               {{ formatStatus(row.status) }}
             </span>
+            <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
 
@@ -298,6 +302,7 @@ import { queryModule, addModule, updateModule, deleteModule } from '@/api/monito
 import { listSites } from '@/api/monitor'
 import { listDatasource } from '@/api/monitor-datasource'
 import { MODULE_CATEGORY, MONITOR_STATUS } from '@/constants/monitor'
+import { shouldShowModuleStatus } from '@/lib/monitor-effective-status'
 import { MODULE_CHECK_TYPE, MODULE_CATEGORY_OPTIONS } from '@/constants/module'
 
 export default {
@@ -354,7 +359,9 @@ export default {
       tableData.value.filter(row => row.moduleCategory === MODULE_CATEGORY.FORECAST_SERVICE.value).length
     )
     const errorCount = computed(() =>
-      tableData.value.filter(row => row.status === MONITOR_STATUS.ERROR.value).length
+      tableData.value.filter(row =>
+        shouldShowModuleStatus(row) && row.status === MONITOR_STATUS.ERROR.value
+      ).length
     )
 
     const currentCheckFields = computed(() => {
@@ -554,6 +561,7 @@ export default {
       formatTime,
       formatStatus,
       statusKey,
+      shouldShowModuleStatus,
       formatCheckType,
       categoryKey,
       categoryIcon,

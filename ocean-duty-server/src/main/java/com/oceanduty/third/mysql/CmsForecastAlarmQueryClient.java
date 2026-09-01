@@ -2,6 +2,7 @@ package com.oceanduty.third.mysql;
 
 import com.oceanduty.module.monitor.domain.CmsForecastAlarmRecord;
 import com.oceanduty.module.monitor.domain.CmsTablePublishRecord;
+import com.oceanduty.module.monitor.domain.TyphoonSurgeMysqlRecord;
 import com.oceanduty.module.monitor.domain.MonitorDatasourceEntity;
 import com.oceanduty.util.CredentialEncryptUtil;
 import com.zaxxer.hikari.HikariConfig;
@@ -283,12 +284,65 @@ public class CmsForecastAlarmQueryClient {
     }
 
     /**
+     * 查询台风风暴潮网站库最新记录
+     */
+    public TyphoonSurgeMysqlRecord fetchTyphoonSurgeMysqlLatest(MonitorDatasourceEntity datasource) {
+        if (datasource == null || !StringUtils.hasText(datasource.getTableName())) {
+            return null;
+        }
+        validateIdentifier(datasource.getTableName());
+        String table = quoteIdentifier(datasource.getDsType(), datasource.getTableName());
+        String sql = "SELECT initial_time, update_date AS update_time FROM " + table
+                + " ORDER BY update_date DESC LIMIT 1";
+        try (Connection connection = openConnection(datasource);
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+            if (!resultSet.next()) {
+                return null;
+            }
+            Timestamp initialTime = resultSet.getTimestamp("initial_time");
+            Timestamp updateTime = resultSet.getTimestamp("update_time");
+            return TyphoonSurgeMysqlRecord.builder()
+                    .initialTime(initialTime == null ? null : initialTime.toLocalDateTime())
+                    .updateTime(updateTime == null ? null : updateTime.toLocalDateTime())
+                    .build();
+        } catch (SQLException e) {
+            log.error("查询台风风暴潮网站库失败: dsId={}, msg={}", datasource.getId(), e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 查询台风风暴潮 PG 库 done_stamp 最新时间
+     */
+    public LocalDateTime fetchLatestDoneStamp(MonitorDatasourceEntity datasource) {
+        if (datasource == null || !StringUtils.hasText(datasource.getTableName())) {
+            return null;
+        }
+        validateIdentifier(datasource.getTableName());
+        String table = quoteIdentifier(datasource.getDsType(), datasource.getTableName());
+        String sql = "SELECT done_stamp FROM " + table + " WHERE done_stamp IS NOT NULL ORDER BY done_stamp DESC LIMIT 1";
+        try (Connection connection = openConnection(datasource);
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+            if (!resultSet.next()) {
+                return null;
+            }
+            Timestamp doneStamp = resultSet.getTimestamp("done_stamp");
+            return doneStamp == null ? null : doneStamp.toLocalDateTime();
+        } catch (SQLException e) {
+            log.error("查询台风风暴潮 PG done_stamp 失败: dsId={}, msg={}", datasource.getId(), e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * 测试数据源连接
      */
     public boolean testConnection(MonitorDatasourceEntity datasource) {
         try (Connection connection = openConnection(datasource)) {
             return connection.isValid(CONNECT_TIMEOUT_SECONDS);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             log.warn("数据源连接测试失败: dsId={}, msg={}", datasource.getId(), e.getMessage());
             return false;
         }
@@ -311,8 +365,12 @@ public class CmsForecastAlarmQueryClient {
     }
 
     private Connection openConnection(MonitorDatasourceEntity datasource) throws SQLException {
-        HikariDataSource pool = dataSourcePools.computeIfAbsent(datasource.getId(), id -> createPool(datasource));
-        return pool.getConnection();
+        try {
+            HikariDataSource pool = dataSourcePools.computeIfAbsent(datasource.getId(), id -> createPool(datasource));
+            return pool.getConnection();
+        } catch (RuntimeException e) {
+            throw new SQLException("数据源连接失败: " + e.getMessage(), e);
+        }
     }
 
     @PreDestroy
@@ -338,7 +396,7 @@ public class CmsForecastAlarmQueryClient {
     private String buildJdbcUrl(MonitorDatasourceEntity datasource) {
         if (isPostgresql(datasource.getDsType())) {
             return String.format(
-                    "jdbc:postgresql://%s:%d/%s?connectTimeout=%d",
+                    "jdbc:postgresql://%s:%d/%s?connectTimeout=%d&sslmode=disable",
                     datasource.getHost(),
                     datasource.getPort() == null ? 5432 : datasource.getPort(),
                     datasource.getDatabaseName(),

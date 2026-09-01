@@ -38,6 +38,23 @@ public class MonitorDatasourceSeedRunner implements CommandLineRunner {
     @Value("${ocean-duty.datasource.grid.initial-password:}")
     private String gridInitialPassword;
 
+    @Value("${ocean-duty.datasource.typhoon-surge.initial-password:}")
+    private String typhoonSurgeInitialPassword;
+
+    @Value("${ocean-duty.datasource.typhoon-surge.ftp-password:}")
+    private String typhoonSurgeFtpPassword;
+
+    @Value("${ocean-duty.datasource.typhoon-surge.share-password:}")
+    private String typhoonSurgeSharePassword;
+
+    private static final String TYPHOON_SURGE_MYSQL_HOST = "116.204.52.200";
+    private static final int TYPHOON_SURGE_MYSQL_PORT = 3140;
+    private static final String TYPHOON_SURGE_PG_HOST = "128.5.2.164";
+    private static final int TYPHOON_SURGE_PG_PORT = 5432;
+    private static final String TYPHOON_SURGE_MYSQL_DATABASE = "center_site";
+    private static final String TYPHOON_SURGE_PG_DATABASE = "web_surge";
+    private static final String TYPHOON_SURGE_USERNAME = "ocean_work";
+
     @Override
     public void run(String... args) {
         if (StringUtils.hasText(cmsInitialPassword)) {
@@ -59,6 +76,24 @@ public class MonitorDatasourceSeedRunner implements CommandLineRunner {
             seedPostgresDatasource(9L, "中国海洋预报网PG-风暴增水", "app_storm_tide_grid", encryptedPassword);
         } else {
             log.warn("未配置 GRID_DATASOURCE_PASSWORD，跳过默认智能网格数据源初始化，请在「数据源管理」中手动添加");
+        }
+
+        if (StringUtils.hasText(typhoonSurgeInitialPassword)) {
+            String encryptedPassword = credentialEncryptUtil.encrypt(typhoonSurgeInitialPassword);
+            seedTyphoonSurgeMysqlDatasource(10L, "台风风暴潮-网站库", "data_typhoon_surge_info", encryptedPassword);
+            seedTyphoonSurgePostgresDatasource(11L, "台风风暴潮-PG库", "tb_typhoon_surge_info", encryptedPassword);
+        } else {
+            log.warn("未配置 TYPHOON_SURGE_DATASOURCE_PASSWORD，跳过台风风暴潮数据源初始化");
+        }
+
+        if (StringUtils.hasText(typhoonSurgeFtpPassword)) {
+            String encryptedPassword = credentialEncryptUtil.encrypt(typhoonSurgeFtpPassword);
+            seedTyphoonSurgeFtpDatasource(12L, "台风风暴潮-FTP", "/ty_surge/nc_maxsurge", encryptedPassword);
+        }
+
+        if (StringUtils.hasText(typhoonSurgeSharePassword)) {
+            String encryptedPassword = credentialEncryptUtil.encrypt(typhoonSurgeSharePassword);
+            seedTyphoonSurgeShareDatasource(13L, "台风风暴潮-原始文件共享", "ty_surge/result", encryptedPassword);
         }
     }
 
@@ -98,5 +133,81 @@ public class MonitorDatasourceSeedRunner implements CommandLineRunner {
                 .status(1)
                 .build());
         log.info("已初始化数据源: {} ({})", name, tableName);
+    }
+
+    private void seedTyphoonSurgeMysqlDatasource(Long id, String name, String tableName, String encryptedPassword) {
+        if (monitorDatasourceDao.selectById(id) != null) {
+            return;
+        }
+        monitorDatasourceDao.insert(MonitorDatasourceEntity.builder()
+                .id(id)
+                .dsName(name)
+                .dsType("mysql")
+                .host(TYPHOON_SURGE_MYSQL_HOST)
+                .port(TYPHOON_SURGE_MYSQL_PORT)
+                .databaseName(TYPHOON_SURGE_MYSQL_DATABASE)
+                .username(TYPHOON_SURGE_USERNAME)
+                .password(encryptedPassword)
+                .tableName(tableName)
+                .status(1)
+                .build());
+        log.info("已初始化数据源: {} ({})", name, tableName);
+    }
+
+    private void seedTyphoonSurgePostgresDatasource(Long id, String name, String tableName, String encryptedPassword) {
+        if (monitorDatasourceDao.selectById(id) != null) {
+            return;
+        }
+        monitorDatasourceDao.insert(MonitorDatasourceEntity.builder()
+                .id(id)
+                .dsName(name)
+                .dsType("postgresql")
+                .host(TYPHOON_SURGE_PG_HOST)
+                .port(TYPHOON_SURGE_PG_PORT)
+                .databaseName(TYPHOON_SURGE_PG_DATABASE)
+                .username(TYPHOON_SURGE_USERNAME)
+                .password(encryptedPassword)
+                .tableName(tableName)
+                .status(1)
+                .build());
+        log.info("已初始化数据源: {} ({})", name, tableName);
+    }
+
+    private void seedTyphoonSurgeFtpDatasource(Long id, String name, String baseDir, String encryptedPassword) {
+        if (monitorDatasourceDao.selectById(id) != null) {
+            return;
+        }
+        monitorDatasourceDao.insert(MonitorDatasourceEntity.builder()
+                .id(id)
+                .dsName(name)
+                .dsType("ftp")
+                .host("128.5.2.164")
+                .port(21)
+                .databaseName("")
+                .username("surge_duty_watcher")
+                .password(encryptedPassword)
+                .tableName(baseDir)
+                .status(1)
+                .build());
+        log.info("已初始化数据源: {} ({})", name, baseDir);
+    }
+
+    private void seedTyphoonSurgeShareDatasource(Long id, String name, String subDir, String encryptedPassword) {
+        if (monitorDatasourceDao.selectById(id) != null) {
+            return;
+        }
+        monitorDatasourceDao.insert(MonitorDatasourceEntity.builder()
+                .id(id)
+                .dsName(name)
+                .dsType("smb")
+                .host("172.16.30.160")
+                .port(445)
+                .databaseName("upload2surge")
+                .username("upload2surge")
+                .password(encryptedPassword)
+                .tableName(subDir)
+                .status(1)
+                .build());
+        log.info("已初始化数据源: {} ({})", name, subDir);
     }
 }

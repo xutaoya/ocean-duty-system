@@ -13,6 +13,19 @@ const parseCheckParam = (checkParam) => {
 export const isDisasterWarningModule = (mod) =>
   mod?.moduleCategory === MODULE_CATEGORY.DISASTER_WARNING.value
 
+export const shouldShowModuleStatus = (mod) => {
+  if (!mod) {
+    return false
+  }
+  if (isDisasterWarningModule(mod)) {
+    return false
+  }
+  if (mod.checkType === MODULE_CHECK_TYPE.TYPHOON_STORM_SURGE_CHAIN.value) {
+    return false
+  }
+  return true
+}
+
 const isPublishedToday = (time) => {
   if (!time) return false
   const publishDate = time.substring(0, 10)
@@ -56,6 +69,9 @@ export const resolveModuleEffectiveStatus = (mod) => {
     return MONITOR_STATUS.NORMAL.value
   }
   if (isDisasterWarningModule(mod)) {
+    return MONITOR_STATUS.NORMAL.value
+  }
+  if (mod.checkType === MODULE_CHECK_TYPE.TYPHOON_STORM_SURGE_CHAIN.value) {
     return MONITOR_STATUS.NORMAL.value
   }
   if (mod.checkType === MODULE_CHECK_TYPE.CMS_GRID_UPDATE.value) {

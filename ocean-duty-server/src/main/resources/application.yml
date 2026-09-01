@@ -61,6 +61,21 @@ ocean-duty:
     grid-version:
       mysql-datasource-id: ${GRID_VERSION_MYSQL_DS_ID:1}
       controller-table: pro_version_controller
+    typhoon-surge:
+      ftp:
+        enabled: ${TYPHOON_SURGE_FTP_ENABLED:true}
+        host: ${TYPHOON_SURGE_FTP_HOST:128.5.2.164}
+        port: ${TYPHOON_SURGE_FTP_PORT:21}
+        username: ${TYPHOON_SURGE_FTP_USERNAME:surge_duty_watcher}
+        password: ${TYPHOON_SURGE_FTP_PASSWORD:}
+        base-dir: /ty_surge/nc_maxsurge
+        mount-base: ${TYPHOON_SURGE_FTP_MOUNT_BASE:}
+        connect-timeout-ms: ${TYPHOON_SURGE_FTP_CONNECT_TIMEOUT_MS:10000}
+        data-timeout-ms: ${TYPHOON_SURGE_FTP_DATA_TIMEOUT_MS:30000}
+      share:
+        enabled: ${TYPHOON_SURGE_SHARE_ENABLED:true}
+        mount-base: ${TYPHOON_SURGE_SHARE_MOUNT_BASE:/Volumes/upload2surge}
+        sub-dir: ty_surge/result
   jwt:
     secret: ${JWT_SECRET:ocean-duty-default-secret-change-in-production}
     expire-hours: 24
@@ -72,6 +87,10 @@ ocean-duty:
       initial-password: ${CMS_DATASOURCE_PASSWORD:}
     grid:
       initial-password: ${GRID_DATASOURCE_PASSWORD:}
+    typhoon-surge:
+      initial-password: ${TYPHOON_SURGE_DATASOURCE_PASSWORD:}
+      ftp-password: ${TYPHOON_SURGE_FTP_PASSWORD:}
+      share-password: ${TYPHOON_SURGE_SHARE_PASSWORD:}
 
 logging:
   level:

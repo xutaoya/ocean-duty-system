@@ -8,6 +8,7 @@ import com.oceanduty.module.monitor.domain.CmsForecastAlarmRecord;
 import com.oceanduty.module.monitor.domain.CmsTablePublishRecord;
 import com.oceanduty.module.monitor.domain.MonitorDatasourceEntity;
 import com.oceanduty.module.monitor.domain.MonitorModuleEntity;
+import com.oceanduty.module.monitor.domain.TyphoonSurgeMysqlRecord;
 import com.oceanduty.third.mysql.CmsForecastAlarmQueryClient;
 import com.oceanduty.third.nmefc.NmefcApiClient;
 import lombok.RequiredArgsConstructor;
@@ -87,16 +88,22 @@ public class MonitorModuleCheckService {
             if (!isCmsCheckType(module.getCheckType())) {
                 continue;
             }
-            Long datasourceId = parseLong(parseCheckParam(module.getCheckParam()).get("datasourceId"));
-            if (datasourceId == null || datasourceMap.containsKey(datasourceId)) {
-                continue;
-            }
-            MonitorDatasourceEntity datasource = monitorDatasourceDao.selectById(datasourceId);
-            if (datasource != null) {
-                datasourceMap.put(datasourceId, datasource);
-            }
+            Map<String, String> params = parseCheckParam(module.getCheckParam());
+            putDatasourceIfPresent(datasourceMap, parseLong(params.get("datasourceId")));
+            putDatasourceIfPresent(datasourceMap, parseLong(params.get("mysqlDatasourceId")));
+            putDatasourceIfPresent(datasourceMap, parseLong(params.get("pgDatasourceId")));
         }
         return datasourceMap;
+    }
+
+    private void putDatasourceIfPresent(Map<Long, MonitorDatasourceEntity> datasourceMap, Long datasourceId) {
+        if (datasourceId == null || datasourceMap.containsKey(datasourceId)) {
+            return;
+        }
+        MonitorDatasourceEntity datasource = monitorDatasourceDao.selectById(datasourceId);
+        if (datasource != null) {
+            datasourceMap.put(datasourceId, datasource);
+        }
     }
 
     /**
@@ -157,7 +164,8 @@ public class MonitorModuleCheckService {
     private boolean isCmsCheckType(String checkType) {
         return ModuleCheckTypeConst.CMS_FORECAST_ALARM.equals(checkType)
                 || ModuleCheckTypeConst.CMS_TABLE_PUBLISH.equals(checkType)
-                || ModuleCheckTypeConst.CMS_GRID_UPDATE.equals(checkType);
+                || ModuleCheckTypeConst.CMS_GRID_UPDATE.equals(checkType)
+                || ModuleCheckTypeConst.TYPHOON_STORM_SURGE_CHAIN.equals(checkType);
     }
 
     private ModuleCheckResult fetchCheckResult(String checkType, Map<String, String> params,
@@ -173,6 +181,9 @@ public class MonitorModuleCheckService {
         }
         if (ModuleCheckTypeConst.CMS_GRID_UPDATE.equals(checkType)) {
             return fetchCmsGridUpdate(params, datasourceMap);
+        }
+        if (ModuleCheckTypeConst.TYPHOON_STORM_SURGE_CHAIN.equals(checkType)) {
+            return fetchTyphoonSurgeUpdate(params, datasourceMap);
         }
         LocalDateTime updateTime = fetchUpdateTime(checkType, params);
         return new ModuleCheckResult(updateTime, null, null, null);
@@ -244,6 +255,23 @@ public class MonitorModuleCheckService {
         return new ModuleCheckResult(record.getPublishTime(), null, null, null);
     }
 
+    private ModuleCheckResult fetchTyphoonSurgeUpdate(Map<String, String> params,
+                                                      Map<Long, MonitorDatasourceEntity> datasourceMap) {
+        Long mysqlDatasourceId = parseLong(params.get("mysqlDatasourceId"));
+        if (mysqlDatasourceId == null) {
+            return ModuleCheckResult.empty();
+        }
+        MonitorDatasourceEntity datasource = resolveDatasource(mysqlDatasourceId, datasourceMap);
+        if (datasource == null || datasource.getStatus() != null && datasource.getStatus() == 0) {
+            return ModuleCheckResult.empty();
+        }
+        TyphoonSurgeMysqlRecord record = cmsForecastAlarmQueryClient.fetchTyphoonSurgeMysqlLatest(datasource);
+        if (record == null || record.getUpdateTime() == null) {
+            return ModuleCheckResult.empty();
+        }
+        return new ModuleCheckResult(record.getUpdateTime(), null, null, null);
+    }
+
     private LocalDateTime fetchUpdateTime(String checkType, Map<String, String> params) {
         return switch (checkType) {
             case ModuleCheckTypeConst.WARN_HISTORY -> nmefcApiClient.fetchWarnHistoryLatest(
@@ -272,6 +300,9 @@ public class MonitorModuleCheckService {
             if ("monthly".equals(scheduleType)) {
                 return evaluateMonthlyStatus(updateTime, alarmTitle);
             }
+            return evaluateDailyStatus(module, updateTime);
+        }
+        if (ModuleCheckTypeConst.TYPHOON_STORM_SURGE_CHAIN.equals(module.getCheckType())) {
             return evaluateDailyStatus(module, updateTime);
         }
         return evaluateAlarmStatus(module, updateTime);
@@ -395,7 +426,14 @@ public class MonitorModuleCheckService {
         if (!isCmsCheckType(checkType)) {
             return null;
         }
-        Long datasourceId = parseLong(params.get("datasourceId"));
+        if (ModuleCheckTypeConst.TYPHOON_STORM_SURGE_CHAIN.equals(checkType)) {
+            return resolveSingleDatasourceIssue(parseLong(params.get("mysqlDatasourceId")), datasourceMap);
+        }
+        return resolveSingleDatasourceIssue(parseLong(params.get("datasourceId")), datasourceMap);
+    }
+
+    private String resolveSingleDatasourceIssue(Long datasourceId,
+                                                Map<Long, MonitorDatasourceEntity> datasourceMap) {
         if (datasourceId == null) {
             return "未配置关联数据源";
         }

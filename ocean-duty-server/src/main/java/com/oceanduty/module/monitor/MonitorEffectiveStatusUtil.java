@@ -34,6 +34,9 @@ public final class MonitorEffectiveStatusUtil {
         if (ModuleCheckTypeConst.CMS_GRID_UPDATE.equals(module.getCheckType())) {
             return module.getStatus();
         }
+        if (ModuleCheckTypeConst.TYPHOON_STORM_SURGE_CHAIN.equals(module.getCheckType())) {
+            return MonitorStatusConst.NORMAL;
+        }
         if (isContentCurrent(module)) {
             return MonitorStatusConst.NORMAL;
         }
@@ -45,13 +48,19 @@ public final class MonitorEffectiveStatusUtil {
     }
 
     /**
-     * 灾害预警仅展示警报内容，不参与值班日志异常统计
+     * 灾害预警、台风风暴潮仅展示数据链路，不参与值班日志异常统计
      */
     public static boolean shouldIncludeInDutyLog(MonitorModuleVO module) {
         if (module == null) {
             return false;
         }
-        return !ModuleCategoryConst.DISASTER_WARNING.equals(module.getModuleCategory());
+        if (ModuleCategoryConst.DISASTER_WARNING.equals(module.getModuleCategory())) {
+            return false;
+        }
+        if (ModuleCheckTypeConst.TYPHOON_STORM_SURGE_CHAIN.equals(module.getCheckType())) {
+            return false;
+        }
+        return true;
     }
 
     public static boolean isDutyLogAbnormal(MonitorModuleVO module) {

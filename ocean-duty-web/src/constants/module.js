@@ -99,6 +99,14 @@ export const MODULE_CHECK_TYPE = {
         ]
       }
     ]
+  },
+  TYPHOON_STORM_SURGE_CHAIN: {
+    value: 'TYPHOON_STORM_SURGE_CHAIN',
+    desc: '台风风暴潮数据链路',
+    fields: [
+      { key: 'mysqlDatasourceId', label: '网站库数据源', inputType: 'datasource', placeholder: 'MySQL data_typhoon_surge_info' },
+      { key: 'pgDatasourceId', label: 'PG库数据源', inputType: 'datasource', placeholder: 'PG tb_typhoon_surge_info' }
+    ]
   }
 }
 

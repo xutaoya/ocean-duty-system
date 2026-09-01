@@ -32,6 +32,15 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
     @Value("${ocean-duty.datasource.grid.initial-password:}")
     private String gridInitialPassword;
 
+    @Value("${ocean-duty.datasource.typhoon-surge.initial-password:}")
+    private String typhoonSurgeInitialPassword;
+
+    @Value("${ocean-duty.datasource.typhoon-surge.ftp-password:}")
+    private String typhoonSurgeFtpPassword;
+
+    @Value("${ocean-duty.datasource.typhoon-surge.share-password:}")
+    private String typhoonSurgeSharePassword;
+
     @Override
     public void run(String... args) {
         Set<String> moduleColumns = loadTableColumns("monitor_module");
@@ -52,6 +61,8 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         migrateDatasourcePasswords();
         seedCmsEnvDatasources();
         seedGridDatasources();
+        seedTyphoonSurgeDatasources();
+        seedTyphoonSurgeModule();
         migrateEnvModuleCheckParams();
         removeLegacyNmefcModules();
         fixTodayPublishedModuleStatus();
@@ -267,6 +278,92 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
                         + "VALUES (?, ?, 'postgresql', ?, ?, ?, ?, ?, ?, 1, 0)",
                 id, name, "116.204.52.24", 3141, "hyyj", "ocean_work", encryptedPassword, tableName);
         log.info("已补全数据源: {} ({})", name, tableName);
+    }
+
+    /**
+     * 补全台风风暴潮数据源（密码 AES 加密入库）
+     */
+    private void seedTyphoonSurgeDatasources() {
+        fixTyphoonSurgeDatasourceMetadata();
+        if (StringUtils.hasText(typhoonSurgeInitialPassword)) {
+            String encrypted = credentialEncryptUtil.encrypt(typhoonSurgeInitialPassword);
+            upsertTyphoonDatasource(
+                    10L, "台风风暴潮-网站库", "mysql",
+                    "116.204.52.200", 3140, "center_site", "ocean_work",
+                    encrypted, "data_typhoon_surge_info");
+            upsertTyphoonDatasource(
+                    11L, "台风风暴潮-PG库", "postgresql",
+                    "128.5.2.164", 5432, "web_surge", "ocean_work",
+                    encrypted, "tb_typhoon_surge_info");
+        }
+        if (StringUtils.hasText(typhoonSurgeFtpPassword)) {
+            String encrypted = credentialEncryptUtil.encrypt(typhoonSurgeFtpPassword);
+            upsertTyphoonDatasource(
+                    12L, "台风风暴潮-FTP", "ftp",
+                    "128.5.2.164", 21, "", "surge_duty_watcher",
+                    encrypted, "/ty_surge/nc_maxsurge");
+        }
+        if (StringUtils.hasText(typhoonSurgeSharePassword)) {
+            String encrypted = credentialEncryptUtil.encrypt(typhoonSurgeSharePassword);
+            upsertTyphoonDatasource(
+                    13L, "台风风暴潮-原始文件共享", "smb",
+                    "172.16.30.160", 445, "upload2surge", "upload2surge",
+                    encrypted, "ty_surge/result");
+        }
+    }
+
+    private void fixTyphoonSurgeDatasourceMetadata() {
+        jdbcTemplate.update(
+                "UPDATE monitor_datasource SET database_name = ? WHERE id = 10 AND deleted_flag = 0 AND database_name = ?",
+                "center_site", "hyyj");
+        jdbcTemplate.update(
+                "UPDATE monitor_datasource SET database_name = ? WHERE id = 11 AND deleted_flag = 0 AND database_name = ?",
+                "web_surge", "hyyj");
+        jdbcTemplate.update(
+                "UPDATE monitor_datasource SET table_name = ? WHERE id = 13 AND deleted_flag = 0 AND table_name = ?",
+                "ty_surge/result", "ty_surge");
+    }
+
+    private void upsertTyphoonDatasource(long id, String name, String dsType, String host, int port,
+                                         String databaseName, String username, String encryptedPassword,
+                                         String tableName) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM monitor_datasource WHERE id = ? AND deleted_flag = 0", Integer.class, id);
+        if (count == null || count == 0) {
+            jdbcTemplate.update(
+                    "INSERT INTO monitor_datasource (id, ds_name, ds_type, host, port, database_name, username, password, table_name, status, deleted_flag) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)",
+                    id, name, dsType, host, port, databaseName, username, encryptedPassword, tableName);
+            log.info("已补全数据源: {} ({})", name, tableName);
+            return;
+        }
+        String currentPassword = jdbcTemplate.queryForObject(
+                "SELECT password FROM monitor_datasource WHERE id = ? AND deleted_flag = 0",
+                String.class, id);
+        if (!credentialEncryptUtil.isEncrypted(currentPassword)) {
+            jdbcTemplate.update(
+                    "UPDATE monitor_datasource SET password = ? WHERE id = ? AND deleted_flag = 0",
+                    encryptedPassword, id);
+            log.info("已加密更新 monitor_datasource.{} 密码", id);
+        }
+    }
+
+    private void seedTyphoonSurgeModule() {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM monitor_module WHERE id = 36 AND deleted_flag = 0", Integer.class);
+        if (count != null && count > 0) {
+            return;
+        }
+        int inserted = jdbcTemplate.update(
+                "INSERT INTO monitor_module (id, site_id, module_name, module_url, module_category, module_group, "
+                        + "check_type, check_param, expected_time, status, deleted_flag) "
+                        + "VALUES (36, 1, '台风风暴潮', 'https://www.oceanguide.org.cn/IndexHome', "
+                        + "'forecast_service', '中心网站-风暴潮预报', 'TYPHOON_STORM_SURGE_CHAIN', "
+                        + "'{\"mysqlDatasourceId\":\"10\",\"pgDatasourceId\":\"11\",\"ftpDatasourceId\":\"12\",\"shareDatasourceId\":\"13\"}', "
+                        + "'08:00', 1, 0)");
+        if (inserted > 0) {
+            log.info("已补全监控模块: 台风风暴潮");
+        }
     }
 
     /**

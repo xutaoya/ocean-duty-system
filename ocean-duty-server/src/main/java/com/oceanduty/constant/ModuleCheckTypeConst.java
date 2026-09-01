@@ -34,4 +34,7 @@ public final class ModuleCheckTypeConst {
 
     /** 智能网格表更新时间查询 */
     public static final String CMS_GRID_UPDATE = "CMS_GRID_UPDATE";
+
+    /** 台风风暴潮数据链路 */
+    public static final String TYPHOON_STORM_SURGE_CHAIN = "TYPHOON_STORM_SURGE_CHAIN";
 }

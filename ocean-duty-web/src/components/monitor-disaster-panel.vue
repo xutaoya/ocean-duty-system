@@ -6,8 +6,9 @@
       :key="mod.id"
       class="disaster-row"
       :class="{
-        'disaster-row--static': !isAlarmModule(mod) && !isGridDetailRow(mod),
-        'disaster-row--grid': isGridDetailRow(mod)
+        'disaster-row--static': !isAlarmModule(mod) && !isChainDetailRow(mod),
+        'disaster-row--grid': isChainDetailRow(mod),
+        'disaster-row--surge': isTyphoonSurgeModule(mod) && isChainDetailRow(mod)
       }"
       @click="handleRowClick(mod)"
     >
@@ -24,7 +25,7 @@
           </div>
 
           <div class="row-alarm">
-            <template v-if="displayTitle(mod) && isGridModule(mod)">
+            <template v-if="displayTitle(mod) && (isGridModule(mod) || isTyphoonSurgeModule(mod))">
               <div class="grid-update-headline">
                 <span class="grid-update-label">更新时间</span>
                 <time class="grid-update-time">{{ formatTime(mod.updateTime) }}</time>
@@ -44,9 +45,10 @@
           </div>
 
           <div
-            v-if="isGridDetailRow(mod)"
+            v-if="isChainDetailRow(mod)"
             class="row-grid-detail"
-            @click.stop="handleGridDetailClick(mod)"
+            :class="{ 'row-grid-detail--surge': isTyphoonSurgeModule(mod) }"
+            @click.stop="handleChainDetailClick(mod)"
           >
             <template v-if="isGridDetailLoading(mod.id)">
               <div class="grid-detail-loading">
@@ -55,9 +57,12 @@
               </div>
             </template>
             <template v-else-if="getGridDetail(mod.id)">
-              <div class="grid-detail-board">
+              <div
+                class="grid-detail-board"
+                :class="{ 'grid-detail-board--surge': isTyphoonSurgeModule(mod) }"
+              >
                 <div
-                  v-for="(group, index) in getGridDetailGroups(mod)"
+                  v-for="(group, index) in getChainDetailGroups(mod)"
                   :key="group.key"
                   class="grid-detail-group"
                 >
@@ -135,10 +140,11 @@
 <script>
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getModuleAlarmDetail, getSmartGridDetail } from '@/api/monitor'
-import { MONITOR_STATUS, MODULE_CATEGORY } from '@/constants/monitor'
+import { getModuleAlarmDetail, getSmartGridDetail, getTyphoonSurgeDetail } from '@/api/monitor'
+import { MONITOR_STATUS } from '@/constants/monitor'
 import { MODULE_CHECK_TYPE } from '@/constants/module'
 import { getAlarmLevelTheme, getMonitorStatusTheme } from '@/lib/alarm-theme'
+import { isDisasterWarningModule, shouldShowModuleStatus } from '@/lib/monitor-effective-status'
 import MonitorAlarmDetailDialog from '@/components/monitor-alarm-detail-dialog.vue'
 
 export default {
@@ -150,6 +156,10 @@ export default {
       default: () => []
     },
     gridDetailEnabled: {
+      type: Boolean,
+      default: false
+    },
+    typhoonSurgeDetailEnabled: {
       type: Boolean,
       default: false
     }
@@ -172,14 +182,17 @@ export default {
 
     const isAlarmModule = (mod) => mod.checkType === MODULE_CHECK_TYPE.CMS_FORECAST_ALARM.value
 
-    const isDisasterWarningModule = (mod) =>
-      mod.moduleCategory === MODULE_CATEGORY.DISASTER_WARNING.value
-
-    const shouldShowStatus = (mod) => !isDisasterWarningModule(mod)
+    const shouldShowStatus = shouldShowModuleStatus
 
     const isGridModule = (mod) => mod.checkType === MODULE_CHECK_TYPE.CMS_GRID_UPDATE.value
 
-    const isGridDetailRow = (mod) => props.gridDetailEnabled && isGridModule(mod)
+    const isTyphoonSurgeModule = (mod) => mod.checkType === MODULE_CHECK_TYPE.TYPHOON_STORM_SURGE_CHAIN.value
+
+    const isChainDetailRow = (mod) =>
+      (props.gridDetailEnabled && isGridModule(mod))
+      || (props.typhoonSurgeDetailEnabled && isTyphoonSurgeModule(mod))
+
+    const isGridDetailRow = isChainDetailRow
 
     const getGridDetail = (moduleId) => gridDetailMap[moduleId]
 
@@ -219,6 +232,47 @@ export default {
       }
     ]
 
+    const typhoonSurgeDetailGroups = [
+      {
+        key: 'database',
+        label: '数据库',
+        fields: [
+          { key: 'initialTime', label: '起报时间', type: 'time' },
+          { key: 'updateTime', label: '更新时间', type: 'time' }
+        ]
+      },
+      {
+        key: 'processed',
+        label: '处理后',
+        fields: [{ key: 'pgDoneStamp', label: '完成时间', type: 'time' }]
+      },
+      {
+        key: 'beforeProcess',
+        label: '处理前',
+        fields: [{ key: 'ftpModifiedTime', label: '修改时间', type: 'time' }]
+      },
+      {
+        key: 'raw',
+        label: '原始文件',
+        fields: [{ key: 'rawModifiedTime', label: '修改时间', type: 'time' }]
+      }
+    ]
+
+    const typhoonSurgeChainKeys = [
+      'initialTime',
+      'updateTime',
+      'pgDoneStamp',
+      'ftpModifiedTime',
+      'rawModifiedTime'
+    ]
+
+    const getChainDetailGroups = (mod) => {
+      if (isTyphoonSurgeModule(mod)) {
+        return typhoonSurgeDetailGroups
+      }
+      return getGridDetailGroups(mod)
+    }
+
     const getGridDetailGroups = (mod) => {
       const detail = getGridDetail(mod.id)
       if (detail?.showOutput === false) {
@@ -238,7 +292,9 @@ export default {
 
     const parseAlarmType = (checkParam) => parseCheckParam(checkParam).type || ''
 
-    const isCmsTablePublish = (mod) => mod.checkType === MODULE_CHECK_TYPE.CMS_TABLE_PUBLISH.value
+    const isCmsTablePublish = (mod) =>
+      mod.checkType === MODULE_CHECK_TYPE.CMS_TABLE_PUBLISH.value
+      || mod.checkType === MODULE_CHECK_TYPE.TYPHOON_STORM_SURGE_CHAIN.value
 
     const isPublishedToday = (time) => {
       if (!time) return false
@@ -281,6 +337,9 @@ export default {
       if (isGridModule(mod)) {
         return mod.status
       }
+      if (isTyphoonSurgeModule(mod)) {
+        return MONITOR_STATUS.NORMAL.value
+      }
       if (isContentCurrent(mod)) {
         return MONITOR_STATUS.NORMAL.value
       }
@@ -288,7 +347,7 @@ export default {
     }
 
     const emptyLabel = (mod) => {
-      if (isGridModule(mod)) {
+      if (isGridModule(mod) || isTyphoonSurgeModule(mod)) {
         if (mod.remark) {
           return mod.remark
         }
@@ -335,7 +394,7 @@ export default {
     }
 
     const displayTitle = (mod) => {
-      if (isGridModule(mod)) {
+      if (isGridModule(mod) || isTyphoonSurgeModule(mod)) {
         return !!mod.updateTime
       }
       if (!mod.alarmTitle || isCmsTablePublish(mod)) return false
@@ -343,7 +402,7 @@ export default {
     }
 
     const displayTitleText = (mod) => {
-      if (isGridModule(mod)) {
+      if (isGridModule(mod) || isTyphoonSurgeModule(mod)) {
         return `更新时间 ${formatTime(mod.updateTime)}`
       }
       return mod.alarmTitle
@@ -371,6 +430,9 @@ export default {
       if (field.type === 'size') {
         return formatFileSize(value)
       }
+      if (field.type === 'text') {
+        return value || '-'
+      }
       return formatTime(value)
     }
 
@@ -381,11 +443,13 @@ export default {
       return Number.isNaN(timestamp) ? null : timestamp
     }
 
-    const getChainTimeAlertKeys = (detail, groups) => {
+    const getChainTimeAlertKeys = (detail, mod) => {
       const alerts = new Set()
-      const chainKeys = groups
-        .map(group => group.fields[0]?.key)
-        .filter(Boolean)
+      const chainKeys = isTyphoonSurgeModule(mod)
+        ? typhoonSurgeChainKeys
+        : getChainDetailGroups(mod)
+            .map(group => group.fields[0]?.key)
+            .filter(Boolean)
       for (let i = 1; i < chainKeys.length; i += 1) {
         const previous = parseDetailTime(detail[chainKeys[i - 1]])
         const current = parseDetailTime(detail[chainKeys[i]])
@@ -404,14 +468,33 @@ export default {
       if (!detail) {
         return false
       }
-      return getChainTimeAlertKeys(detail, getGridDetailGroups(mod)).has(field.key)
+      return getChainTimeAlertKeys(detail, mod).has(field.key)
+    }
+
+    const handleChainDetailClick = async (mod) => {
+      if (isTyphoonSurgeModule(mod)) {
+        if (gridDetailLoadingMap[mod.id]) {
+          return
+        }
+        gridDetailLoadingMap[mod.id] = true
+        try {
+          const res = await getTyphoonSurgeDetail(mod.id)
+          gridDetailMap[mod.id] = res.data
+        } catch (error) {
+          ElMessage.error(error.message || '加载数据链路失败')
+        } finally {
+          gridDetailLoadingMap[mod.id] = false
+        }
+        return
+      }
+      await handleGridDetailClick(mod)
     }
 
     const rowAccent = (mod) => {
       if (mod.alarmLevel) {
         return getAlarmLevelTheme(mod.alarmLevel)
       }
-      if (isDisasterWarningModule(mod)) {
+      if (isDisasterWarningModule(mod) || isTyphoonSurgeModule(mod)) {
         return { accent: '#1890ff', tagType: 'info' }
       }
       const theme = getMonitorStatusTheme(effectiveStatus(mod), MONITOR_STATUS)
@@ -457,8 +540,8 @@ export default {
     }
 
     const handleRowClick = async (mod) => {
-      if (isGridDetailRow(mod)) {
-        await handleGridDetailClick(mod)
+      if (isChainDetailRow(mod)) {
+        await handleChainDetailClick(mod)
         return
       }
       if (!isAlarmModule(mod)) {
@@ -483,11 +566,16 @@ export default {
       detailLoading,
       alarmDetail,
       isGridDetailRow,
+      isChainDetailRow,
+      isTyphoonSurgeModule,
       gridDetailGroups,
+      typhoonSurgeDetailGroups,
+      getChainDetailGroups,
       getGridDetailGroups,
       getGridDetailEmptyText,
       getGridDetail,
       isGridDetailLoading,
+      handleChainDetailClick,
       handleGridDetailClick,
       isAlarmModule,
       isDisasterWarningModule,
@@ -545,8 +633,29 @@ export default {
   background: #fafbfc;
 }
 
+.disaster-row--surge {
+  overflow-x: auto;
+}
+
+.disaster-row--surge .row-body {
+  min-width: 0;
+}
+
 .disaster-row--grid .row-primary {
   align-items: center;
+}
+
+.disaster-row--surge .row-primary {
+  align-items: stretch;
+  gap: 20px;
+}
+
+.disaster-row--surge .row-type {
+  width: 108px;
+}
+
+.disaster-row--surge .grid-update-headline {
+  min-width: 118px;
 }
 
 .row-grid-detail {
@@ -559,6 +668,15 @@ export default {
   background: linear-gradient(180deg, #fafbfd 0%, #f5f8fc 100%);
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.row-grid-detail--surge {
+  flex: 1 1 480px;
+  min-width: 480px;
+  max-width: 100%;
+  margin-left: auto;
+  padding: 12px 14px;
+  overflow-x: auto;
 }
 
 .row-grid-detail:hover {
@@ -580,6 +698,64 @@ export default {
   display: flex;
   align-items: stretch;
   gap: 0;
+}
+
+.grid-detail-board--surge {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 0;
+}
+
+.grid-detail-board--surge .grid-detail-group {
+  position: relative;
+  flex: none;
+  min-width: 0;
+  padding: 0 12px 0 10px;
+  gap: 8px;
+}
+
+.grid-detail-board--surge .grid-detail-group:first-child {
+  padding-left: 0;
+}
+
+.grid-detail-board--surge .grid-detail-group:last-child {
+  padding-right: 0;
+}
+
+.grid-detail-board--surge .grid-detail-group + .grid-detail-group {
+  border-left: 1px solid #e8edf3;
+}
+
+.grid-detail-board--surge .grid-metric {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  white-space: normal;
+}
+
+.grid-detail-board--surge .grid-metric-label {
+  font-size: 10px;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+}
+
+.grid-detail-board--surge .grid-metric-value {
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.grid-detail-board--surge .grid-group-tag {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 3px 8px;
+  font-size: 10px;
+}
+
+.grid-detail-board--surge .grid-group-index {
+  min-width: 14px;
+  height: 14px;
+  font-size: 9px;
 }
 
 .grid-detail-group {
@@ -853,19 +1029,40 @@ export default {
 }
 
 @media (max-width: 768px) {
-  .disaster-row--grid .row-primary {
+  .disaster-row--grid .row-primary,
+  .disaster-row--surge .row-primary {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .row-grid-detail {
+  .row-grid-detail,
+  .row-grid-detail--surge {
     margin-left: 0;
     margin-top: 10px;
+    min-width: 0;
+    flex: 1 1 auto;
   }
 
-  .grid-detail-board {
+  .grid-detail-board,
+  .grid-detail-board--surge {
+    display: flex;
     flex-direction: column;
     gap: 14px;
+  }
+
+  .grid-detail-board--surge .grid-detail-group + .grid-detail-group {
+    border-left: none;
+    padding-top: 14px;
+    border-top: 1px solid #e8edf3;
+  }
+
+  .grid-detail-board--surge .grid-metric {
+    flex-direction: row;
+    align-items: baseline;
+  }
+
+  .grid-detail-board--surge .grid-metric-value {
+    white-space: normal;
   }
 
   .grid-detail-group {

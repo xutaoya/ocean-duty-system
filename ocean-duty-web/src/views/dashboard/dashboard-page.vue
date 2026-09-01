@@ -110,6 +110,26 @@
       </div>
     </div>
 
+    <!-- 风暴潮预报模块 -->
+    <div class="section">
+      <div class="section-header">
+        <h3 class="section-title">
+          <el-icon><TrendCharts /></el-icon>
+          风暴潮预报 · 最后更新时间
+        </h3>
+        <span class="section-count">中心网站 · {{ typhoonSurgeModules.length }} 个模块</span>
+      </div>
+      <MonitorDisasterPanel
+        v-if="typhoonSurgeModules.length"
+        :modules="typhoonSurgeModules"
+        typhoon-surge-detail-enabled
+      />
+      <div v-else class="empty-state empty-state--info">
+        <el-icon :size="36"><InfoFilled /></el-icon>
+        <p>暂无风暴潮预报模块数据</p>
+      </div>
+    </div>
+
     <!-- 智能网格模块 -->
     <div class="section">
       <div class="section-header">
@@ -137,6 +157,7 @@ import { ElMessage } from 'element-plus'
 import { getDashboard, checkDashboard } from '@/api/monitor'
 import { getDutyLogSnapshotStatus, recordDutyLogSnapshot } from '@/api/duty'
 import { MODULE_CATEGORY } from '@/constants/monitor'
+import { MODULE_CHECK_TYPE } from '@/constants/module'
 import { aggregateDashboardStats } from '@/lib/monitor-effective-status'
 import MonitorSiteCard from '@/components/monitor-site-card.vue'
 import MonitorDisasterPanel from '@/components/monitor-disaster-panel.vue'
@@ -223,6 +244,10 @@ export default {
       modules.value.filter(m => m.moduleCategory === MODULE_CATEGORY.ENV_FORECAST.value)
     )
 
+    const typhoonSurgeModules = computed(() =>
+      modules.value.filter(m => m.checkType === MODULE_CHECK_TYPE.TYPHOON_STORM_SURGE_CHAIN.value)
+    )
+
     const smartGridModules = computed(() =>
       modules.value.filter(m => m.moduleCategory === MODULE_CATEGORY.SMART_GRID.value)
     )
@@ -277,6 +302,7 @@ export default {
       statCards,
       disasterModules,
       envForecastModules,
+      typhoonSurgeModules,
       smartGridModules,
       handleCheck
     }

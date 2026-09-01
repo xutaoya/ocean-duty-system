@@ -170,6 +170,9 @@ public class MonitorQueryService {
         if (ModuleCategoryConst.SMART_GRID.equals(category)) {
             return "智能网格";
         }
+        if (ModuleCategoryConst.FORECAST_SERVICE.equals(category)) {
+            return "预报服务";
+        }
         return "灾害预警";
     }
 }
